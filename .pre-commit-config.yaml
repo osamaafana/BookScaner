@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # This one triggers JS/TS linting via npm (set up in Step 6)
+  - repo: local
+    hooks:
+      - id: lint-staged
+        name: eslint+prettier on staged JS/TS
+        entry: bash -lc "npm run -s lint:staged || true"
+        language: system
+        pass_filenames: false

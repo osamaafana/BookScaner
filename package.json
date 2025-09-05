@@ -1,0 +1,40 @@
+{
+  "name": "bookscaner",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"(no tests yet)\"",
+    "prepare": "husky",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "fmt": "prettier . -w",
+    "lint:staged": "lint-staged"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": "true",
+  "workspaces": [
+    "frontend/web-gateway",
+    "frontend/web-ui"
+  ],
+  "devDependencies": {
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2"
+  },
+  "lint-staged": {
+    "*": {
+      "{js,jsx,ts,tsx}": [
+        "eslint --fix",
+        "prettier -w"
+      ],
+      "{json,md,yml,yaml}": [
+        "prettier -w"
+      ]
+    }
+  }
+}
