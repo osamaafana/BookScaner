@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # Providers / models
     GROQ_API_KEY: str = ""
     GROQ_MONTHLY_CAP_USD: float = 10.0
-    OLLAMA_RECS_MODEL: str = "llama-3.1-70b-versatile"
+    OLLAMA_RECS_MODEL: str = "llama-3.1-8b-instant"
     GCV_CREDENTIALS_JSON_PATH: Optional[str] = None
     OPENLIBRARY_ENABLED: bool = True
     GOOGLEBOOKS_API_KEY: str = ""

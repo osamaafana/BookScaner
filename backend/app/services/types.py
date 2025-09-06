@@ -33,3 +33,30 @@ class Spine(BaseModel):
 
 class SpineResult(BaseModel):
     spines: List[Spine] = []
+
+
+class Recommendation(BaseModel):
+    title: str
+    author: Optional[str] = None
+    short_reason: Optional[str] = None
+
+
+class RecsPayload(BaseModel):
+    device_id: str
+    saved_book_ids: List[int]  # canonical DB ids of saved books
+    top_genres: List[str] = []
+    top_authors: List[str] = []
+    limit: int = 6
+
+
+class BBoxOut(BaseModel):
+    x: int
+    y: int
+    w: int
+    h: int
+
+
+class SpineOut(BaseModel):
+    bbox: Optional[BBoxOut] = None
+    text: str
+    candidates: List[str] = []

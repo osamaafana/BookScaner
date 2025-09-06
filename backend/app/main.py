@@ -8,7 +8,7 @@ from sqlalchemy import text
 from .cache.redis import get_redis
 from .config import settings
 from .db.session import async_engine
-from .routers import books, history, preferences, recommend, scan, test
+from .routers import admin, books, history, preferences, recommend, scan
 
 
 def create_app() -> FastAPI:
@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(history.router, prefix="/v1")
     app.include_router(preferences.router, prefix="/v1")
     app.include_router(recommend.router, prefix="/v1")
-    app.include_router(test.router, prefix="/v1")  # test endpoints
+    app.include_router(admin.router)
 
     # Health (Phase 1 requirement: {"ok": true})
     @app.get("/health")
