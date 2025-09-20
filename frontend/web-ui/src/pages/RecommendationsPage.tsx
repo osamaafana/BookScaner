@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  RefreshCw, Plus, BookOpen, Brain, Sparkles, Zap, Cpu, Eye,
+  RefreshCw, Plus, BookOpen, Brain, Sparkles, Cpu, Eye,
   CheckCircle2, Loader2, Star, TrendingUp
 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -28,7 +28,7 @@ export function RecommendationsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddingBook, setIsAddingBook] = useState<string | null>(null)
-  const [debugResponse, setDebugResponse] = useState<any>(null)
+  const [debugResponse, setDebugResponse] = useState<unknown>(null)
   const ranRef = useRef(false) // guard StrictMode double invoke
 
   const { books, addBook, preferences } = useStorage()
@@ -52,7 +52,7 @@ export function RecommendationsPage() {
     }
   }
 
-  const loadRecommendations = async () => {
+  const loadRecommendations = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
@@ -63,18 +63,18 @@ export function RecommendationsPage() {
         setDebugResponse(data)
 
         const mapped: Recommendation[] = Array.isArray(data.book_scores)
-          ? data.book_scores.map((s: any) => ({
-              title: s.title,
-              author: s.author,
-              short_reason: s.recommendation,
-              cover_url: s.cover_url,
-              isbn: s.isbn,
-              publisher: s.publisher,
-              year: s.year,
+          ? data.book_scores.map((s: Record<string, unknown>) => ({
+              title: String(s.title || ''),
+              author: s.author ? String(s.author) : undefined,
+              short_reason: s.recommendation ? String(s.recommendation) : undefined,
+              cover_url: s.cover_url ? String(s.cover_url) : undefined,
+              isbn: s.isbn ? String(s.isbn) : undefined,
+              publisher: s.publisher ? String(s.publisher) : undefined,
+              year: typeof s.year === 'number' ? s.year : undefined,
               score: typeof s.score === 'number' ? s.score : Number(s.score ?? 0),
-              match_quality: s.match_quality,
+              match_quality: s.match_quality ? String(s.match_quality) : undefined,
               is_perfect_match: !!s.is_perfect_match,
-              reasoning: s.reasoning
+              reasoning: s.reasoning ? String(s.reasoning) : undefined
             }))
           : []
 
@@ -89,13 +89,13 @@ export function RecommendationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     if (ranRef.current) return
     ranRef.current = true
     loadRecommendations()
-  }, [])
+  }, [loadRecommendations])
 
   const addRecommendationToLibrary = async (rec: Recommendation) => {
     const bookKey = `${rec.title}-${rec.author}`
@@ -108,7 +108,7 @@ export function RecommendationsPage() {
       })
       setRecommendations(prev => prev.filter(r => r !== rec))
       toast.success(`Added "${rec.title}" to your library!`)
-      try { (navigator as any).vibrate?.([50, 100, 50]) } catch {}
+      try { (navigator as unknown as { vibrate?: (pattern: number[]) => void }).vibrate?.([50, 100, 50]) } catch {}
     } catch {
       toast.error('Failed to add book to library')
     } finally {
