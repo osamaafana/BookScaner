@@ -21,8 +21,8 @@ async def cache_get(key: str) -> Any:
 
 
 # Key helpers
-def scan_key(image_hash: str) -> str:
-    return f"scan:{image_hash}"
+def scan_key(image_hash: str, groq_enabled: bool = True) -> str:
+    return f"scan:{image_hash}:groq_{groq_enabled}"
 
 
 def meta_key(fingerprint: str) -> str:

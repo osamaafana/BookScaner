@@ -73,12 +73,16 @@ class GoogleBooksAdapter:
         params = {"q": q, "maxResults": 5}
         if self.key:
             params["key"] = self.key
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(GB_API, params=params)
-            r.raise_for_status()
-            d = r.json()
-        items = d.get("items") or []
-        return items[0] if items else None
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(GB_API, params=params)
+                r.raise_for_status()
+                d = r.json()
+            items = d.get("items") or []
+            return items[0] if items else None
+        except (httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
+            print(f"DEBUG: Google Books search failed for query '{q}': {e}")
+            return None
 
     def _to_canonical(
         self, item: Optional[dict], fallback: Optional[tuple] = None
@@ -96,7 +100,17 @@ class GoogleBooksAdapter:
                 isbn = normalize_isbn(ident.get("identifier") or "")
                 if ident.get("type") == "ISBN_13":
                     break
-        cover = (vi.get("imageLinks") or {}).get("thumbnail")
+        # Try to get the best available cover image (prefer larger sizes)
+        image_links = vi.get("imageLinks") or {}
+        cover = (
+            image_links.get("large")
+            or image_links.get("medium")
+            or image_links.get("small")
+            or image_links.get("thumbnail")
+        )
+
+        # Debug logging
+        print(f"DEBUG: Google Books - '{title}' by '{author}' - Cover: {cover}")
         year = None
         if vi.get("publishedDate"):
             try:
@@ -124,10 +138,14 @@ class OpenLibraryAdapter:
         if not isbn:
             return None
         params = {"bibkeys": f"ISBN:{isbn}", "format": "json", "jscmd": "data"}
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(OL_BOOKS_API, params=params)
-            r.raise_for_status()
-            data = r.json()
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(OL_BOOKS_API, params=params)
+                r.raise_for_status()
+                data = r.json()
+        except (httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
+            print(f"DEBUG: OpenLibrary by_isbn failed for ISBN '{isbn}': {e}")
+            return None
 
         item = data.get(f"ISBN:{isbn}")
         if not item:
@@ -159,11 +177,26 @@ class OpenLibraryAdapter:
             return None
         if not (title or author):
             return None
-        params = {"title": title, "author": author, "limit": 5}
-        async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(OL_SEARCH_API, params=params)
-            r.raise_for_status()
-            data = r.json()
+
+        # Build URL manually to use + for spaces (OpenLibrary expects this format)
+        import urllib.parse
+
+        query_parts = []
+        if title:
+            query_parts.append(f"title={urllib.parse.quote_plus(title)}")
+        if author:
+            query_parts.append(f"author={urllib.parse.quote_plus(author)}")
+        query_parts.append("limit=5")
+        url = f"{OL_SEARCH_API}?{'&'.join(query_parts)}"
+
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(url)
+                r.raise_for_status()
+                data = r.json()
+        except (httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
+            print(f"DEBUG: OpenLibrary search failed for '{title}' by '{author}': {e}")
+            return None
 
         docs: List[dict] = data.get("docs") or []
         if not docs:
@@ -202,7 +235,14 @@ class OpenLibraryAdapter:
         if not isbn and isbns:
             isbn = normalize_isbn(isbns[0])
 
+        # Try to get cover URL - prefer ISBN-based, fallback to cover_i if available
         cover_url = _cover_or_none(isbn) if isbn else None
+        if not cover_url and best.get("cover_i"):
+            # Use OpenLibrary's cover_i (cover ID) for books without ISBN
+            cover_url = f"https://covers.openlibrary.org/b/id/{best['cover_i']}-L.jpg"
+
+        # Debug logging
+        print(f"DEBUG: Book '{title}' by '{author}' - ISBN: {isbn}, Cover: {cover_url}")
         year_int = (
             int(best["first_publish_year"]) if best.get("first_publish_year") else None
         )

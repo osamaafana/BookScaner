@@ -52,6 +52,7 @@ class ActionEnum(str, enum.Enum):
     scanned = "scanned"
     saved = "saved"
     hide = "hide"
+    recommended = "recommended"
 
 
 class History(Base):
@@ -64,6 +65,27 @@ class History(Base):
 
     device = relationship("Device")
     book = relationship("Book")
+
+
+class Recommendation(Base):
+    __tablename__ = "recommendation"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    book_id = Column(Integer, ForeignKey("book.id"), nullable=False)
+    device_id = Column(UUID(as_uuid=True), ForeignKey("device.id"), nullable=False)
+    score = Column(Float, nullable=False)
+    recommendation_text = Column(Text, nullable=False)
+    match_quality = Column(String, nullable=False)  # 'perfect', 'good', 'fair', 'poor'
+    is_perfect_match = Column(
+        String, nullable=False
+    )  # Store as string for JSON compatibility
+    reasoning = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    book = relationship("Book")
+    device = relationship("Device")
 
 
 class ProviderEnum(str, enum.Enum):

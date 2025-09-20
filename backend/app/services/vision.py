@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import logging
+from typing import Tuple
 
 from PIL import Image
 
@@ -88,38 +89,57 @@ class VisionService:
         self.groq = GroqVisionAdapter()
         self.gcv = GoogleVisionAdapter()
 
-    async def scan(self, image_bytes: bytes) -> SpineResult:
+    async def scan(
+        self, image_bytes: bytes, groq_enabled: bool = True
+    ) -> Tuple[SpineResult, str]:
         # Use original bytes for cache key to avoid cache misses on different scaled versions
-        original_key = scan_key(_sha256(image_bytes))
+        original_key = scan_key(_sha256(image_bytes), groq_enabled)
         cached = await cache_get(original_key)
         if cached:
             logger.info("Serving scan result from cache")
             record_cache_hit()
-            return SpineResult.parse_obj(cached)
+            # For cached results, we don't know which provider was used, so return "cached"
+            return SpineResult.parse_obj(cached), "cached"
 
         # Downscale image if needed for Groq's base64 limits
         processed_image_bytes = _downscale_image_if_needed(image_bytes)
 
-        # Try Groq first; on any error (incl. account blocked) fall back to GCV
+        # Try Groq first if enabled; on any error (incl. account blocked) fall back to GCV
         result = None
         provider_used = None
 
-        try:
-            logger.info("Attempting vision processing with Groq")
-            with VisionMetrics("groq") as metrics:
-                result, usage = await self.groq.scan(processed_image_bytes)
-                spine_count = len(result.spines) if result.spines else 0
-                metrics.record_spines_detected(spine_count)
+        if groq_enabled:
+            try:
+                logger.info("Attempting vision processing with Groq")
+                with VisionMetrics("groq") as metrics:
+                    result, usage = await self.groq.scan(processed_image_bytes)
+                    spine_count = len(result.spines) if result.spines else 0
+                    metrics.record_spines_detected(spine_count)
 
-            provider_used = "groq"
-            logger.info("✅ Groq vision processing successful")
-            # Optional: derive cost estimate if you want, else record 0.0 and rely on Console limits
-            await record_spend("groq", 0.0)
-            record_vision_spend("groq", 0.0)
+                provider_used = "groq"
+                logger.info("✅ Groq vision processing successful")
+                # Optional: derive cost estimate if you want, else record 0.0 and rely on Console limits
+                await record_spend("groq", 0.0)
+                record_vision_spend("groq", 0.0)
 
-        except Exception as e:
-            logger.warning(f"❌ Groq vision failed: {e}, falling back to Google Vision")
-            # If Groq fails, fall back to Google Cloud Vision
+            except Exception as e:
+                logger.warning(
+                    f"❌ Groq vision failed: {e}, falling back to Google Vision"
+                )
+                # If Groq fails, fall back to Google Cloud Vision
+                # Google Vision can handle larger images, so use original
+                with VisionMetrics("gcv") as metrics:
+                    result, usage = await self.gcv.scan(image_bytes)
+                    spine_count = len(result.spines) if result.spines else 0
+                    metrics.record_spines_detected(spine_count)
+
+                provider_used = "gcv"
+                logger.info("✅ Google Cloud Vision processing successful")
+                await record_spend("gcv", 0.0)
+                record_vision_spend("gcv", 0.0)
+        else:
+            logger.info("Groq disabled, using Google Vision directly")
+            # Groq is disabled, use Google Cloud Vision directly
             # Google Vision can handle larger images, so use original
             with VisionMetrics("gcv") as metrics:
                 result, usage = await self.gcv.scan(image_bytes)
@@ -138,4 +158,4 @@ class VisionService:
         )
 
         await cache_set(original_key, result.dict(), SCAN_TTL)
-        return result
+        return result, provider_used

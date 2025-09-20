@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,10 +19,10 @@ class CanonicalBook(BaseModel):
 
 
 class BBox(BaseModel):
-    x: int = Field(..., ge=0)
-    y: int = Field(..., ge=0)
-    w: int = Field(..., ge=1)
-    h: int = Field(..., ge=1)
+    x: float = Field(..., ge=0.0, le=1.0)
+    y: float = Field(..., ge=0.0, le=1.0)
+    w: float = Field(..., gt=0.0, le=1.0)
+    h: float = Field(..., gt=0.0, le=1.0)
 
 
 class Spine(BaseModel):
@@ -35,18 +35,30 @@ class SpineResult(BaseModel):
     spines: List[Spine] = []
 
 
-class Recommendation(BaseModel):
+class BookAnalysisRequest(BaseModel):
+    device_id: str
+    books: List[Dict[str, Any]]  # List of book dictionaries with title, author, etc.
+    user_preferences: Dict[str, Any] = {}  # genres, authors, languages
+
+
+class BookScore(BaseModel):
     title: str
     author: Optional[str] = None
-    short_reason: Optional[str] = None
+    cover_url: Optional[str] = None
+    score: float  # 0-10 compatibility score
+    recommendation: str  # AI-generated recommendation
+    match_quality: str  # 'perfect', 'good', 'fair', 'poor'
+    is_perfect_match: bool
+    reasoning: str  # Detailed reasoning for the score
 
 
-class RecsPayload(BaseModel):
-    device_id: str
-    saved_book_ids: List[int]  # canonical DB ids of saved books
-    top_genres: List[str] = []
-    top_authors: List[str] = []
-    limit: int = 6
+class BookAnalysisResponse(BaseModel):
+    success: bool
+    total_books_analyzed: int
+    book_scores: List[BookScore]
+    analysis_summary: Dict[str, Any]
+    cached: bool  # Whether recommendations came from cache
+    cache_hit_count: int  # Number of books found in cache
 
 
 class BBoxOut(BaseModel):

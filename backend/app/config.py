@@ -32,11 +32,21 @@ class Settings(BaseSettings):
     # Providers / models
     GROQ_API_KEY: str = ""
     GROQ_MONTHLY_CAP_USD: float = 10.0
+    GROQ_ENABLED: bool = True
+    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     OLLAMA_RECS_MODEL: str = "llama-3.1-8b-instant"
     GCV_CREDENTIALS_JSON_PATH: Optional[str] = None
     OPENLIBRARY_ENABLED: bool = True
     GOOGLEBOOKS_API_KEY: str = ""
     GOOGLE_VISION_API_KEY: str = ""
+
+    # NVIDIA NIM
+    NVIDIA_API_KEY: str = ""
+    NVIDIA_MODEL_NAME: str = "meta/llama-3.1-70b-instruct"
+    NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com"
+
+    # Metadata cache TTL (seconds)
+    METADATA_TTL_SECS: int = 5 * 24 * 3600
 
     # Auth / admin
     JWT_SECRET: str = "change-me"

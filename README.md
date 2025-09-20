@@ -16,3 +16,25 @@ uvicorn app.main:app --reload
 
 
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+Production check list :
+
+# CRITICAL: Set these in your production environment (Vercel/Railway/etc.)
+SECURE_COOKIES=true              # ✅ MUST be true for HTTPS
+BACKEND_URL=https://your-api.com # ✅ Your production backend URL
+NODE_ENV=production              # ✅ Standard production setting
+
+# Optional: Stricter limits for production
+RL_MAX=30                        # Stricter: 30 requests per 5-min window
+BURST_PER_SEC=10                 # Stricter: 10 tokens/sec
+MAX_UPLOAD_MB=5                  # Stricter: 5MB max uploads
+
+
+cd /Users/osamavalit/Documents/Projects/BookScaner/frontend/web-gateway && npm run dev
+
+cd /Users/osamavalit/Documents/Projects/BookScaner/frontend/web-ui && npm run dev
+
+cd /Users/osamavalit/Documents/Projects/BookScaner/deployment && docker-compose up --build
+
+cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

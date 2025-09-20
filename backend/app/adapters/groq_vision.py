@@ -10,12 +10,32 @@ from ..config import settings
 from ..services.types import SpineResult
 
 PROMPT = (
-    "You are a bookshelf OCR system. Detect visible book spines in the photo. "
-    "For each spine, extract readable text (title/author/ISBN if present). "
-    "If you can estimate a tight bounding box around the spine, include it. "
-    "Return ONLY strict JSON with this schema:\n"
-    '{ "spines":[ { "text": "…", "candidate_isbn": "…", '
-    '"bbox": {"x":0,"y":0,"w":0,"h":0} | null } ] }'
+    "You are an expert bookshelf scanner. This image contains MULTIPLE books arranged on shelves. "
+    "Your task is to identify EVERY SINGLE BOOK you can see, no matter how small or partially visible.\n\n"
+    "CRITICAL INSTRUCTIONS:\n"
+    "- Scan for book spines arranged vertically AND horizontally; include stacked books.\n"
+    "- One entry per book. Do not merge adjacent spines.\n"
+    "- Use visual boundaries (gutters, edges, color/texture changes, logo breaks).\n"
+    "- Include partially visible spines. If uncertain between one or two books, prefer two.\n"
+    "- Do not miss books in corners or behind others.\n"
+    "- Ignore non-book objects (decor, boxes, binders, magazines without spine text, DVDs).\n"
+    "- If multiple spines/covers appear in a row, each is a SEPARATE book.\n"
+    "- Each book must have its own entry even if very close to others.\n\n"
+    "For EACH individual book, extract:\n"
+    "1) ALL visible text from that specific spine/cover. Preserve case and punctuation. Use '?' for unclear characters. "
+    "Join lines with single spaces. Any language/script allowed.\n"
+    "2) Any ISBN numbers if visible. Detect ISBN-10 or ISBN-13. Normalize to digits only (no hyphens). If none, set null.\n"
+    "3) Bounding box coordinates: axis-aligned, normalized to [0,1] relative to the full image, origin at top-left, four decimal places. "
+    '"bbox": {"x": left, "y": top, "w": width, "h": height}.\n\n'
+    "ORDERING:\n"
+    "- Sort output by bbox.y, then bbox.x (top-to-bottom, then left-to-right).\n\n"
+    "OUTPUT CONTRACT:\n"
+    '- Return ONLY strict JSON with this exact shape. No comments or extra keys. If nothing found, return {"spines": []}.\n\n'
+    "SCHEMA:\n"
+    '{ "spines": [ { "text": string, "candidate_isbn": string|null, "bbox": {"x": number, "y": number, "w": number, "h": number} } ] }\n\n'
+    "Return ONLY:\n"
+    '{ "spines": [ { "text": "Sample text", "candidate_isbn": null, "bbox": {"x":0.1234,"y":0.0456,"w":0.0789,"h":0.6543} } ] }\n\n'
+    "Remember: Maximize recall. No duplicates."
 )
 
 MODEL_ID = getattr(

@@ -14,14 +14,22 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "axios": "^1.11.0",
+    "cookie-parser": "^1.4.7",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
+    "file-type": "^16.5.4",
+    "form-data": "^4.0.4",
     "helmet": "^8.1.0",
     "http-proxy-middleware": "^3.0.5",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "uuid": "^12.0.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.3",
+    "@types/http-proxy-middleware": "^1.0.0",
+    "@types/multer": "^2.0.0",
     "@types/node": "^24.3.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"

@@ -14,3 +14,4 @@ groq==0.11.0            # Groq Python SDK (OpenAI-compatible)
 google-cloud-vision==3.7.2
 Pillow==10.4.0          # Image processing for downscaling and format conversion
 python-Levenshtein==0.21.1  # Advanced fuzzy string matching for better book title/author matching
+greenlet
