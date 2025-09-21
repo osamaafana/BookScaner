@@ -552,7 +552,7 @@ export function HomePage() {
       setUploadProgress(prev => prev ? { ...prev, message: 'Secure transfer to AI servers...' } : null)
       const scanResult = await uploadWithProgress(processedBlob, (pct) => {
         setUploadProgress(prev => prev ? { ...prev, progress: pct } : null)
-      })
+      }) as { books?: Array<{ bbox: unknown; original_text?: string; title: string; author?: string; isbn?: string }>; model_used: string }
 
       setSteps(prev => prev.map(s => s.key === 'upload' ? { ...s, status: 'done' } : s))
       setSteps(prev => prev.map(s => s.key === 'analyze' ? { ...s, status: 'active' } : s))
@@ -627,7 +627,9 @@ export function HomePage() {
 
       toast.success(`AI successfully identified ${scanResult.books?.length || transformedSpines.length} book${(scanResult.books?.length || transformedSpines.length) !== 1 ? 's' : ''} using ${modelName}!`)
 
-      try { (navigator as any).vibrate?.([50, 100, 50]) } catch {}
+      try { (navigator as { vibrate?: (pattern: number[]) => void }).vibrate?.([50, 100, 50]) } catch {
+        // Vibration not supported, ignore
+      }
 
       // Start enrichment process directly
       setTimeout(() => {
@@ -1027,7 +1029,7 @@ export function HomePage() {
                     </div>
                   </div>
                   {/* Enhanced Progress Info */}
-                  <div className="space-y-6" ref={progressRegionRef as any} tabIndex={-1} aria-live="polite">
+                  <div className="space-y-6" ref={progressRegionRef} tabIndex={-1} aria-live="polite">
 
 
                   </div>
