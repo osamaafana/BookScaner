@@ -43,7 +43,6 @@ export function HomePage() {
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
   const [modelUsed, setModelUsed] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const { saveScanResult, readingList, preferences, updatePreferences, addBook } = useStorage()
   const toast = useToast()
@@ -51,27 +50,35 @@ export function HomePage() {
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null)
   const [retryIn, setRetryIn] = useState<number | null>(null)
   const [detectedObjects, setDetectedObjects] = useState<Array<{x: number, y: number, w: number, h: number, confidence: number}>>([])
+  const [showCamera, setShowCamera] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [cameraLoading, setCameraLoading] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
   const retryTimerRef = useRef<number | null>(null)
   const progressRegionRef = useRef<HTMLDivElement>(null)
   const currentXHRRef = useRef<XMLHttpRequest | null>(null)
   const collectionCardRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  type StepKey = 'optimize' | 'upload' | 'analyze' | 'extract' | 'enrich' | 'complete'
+  type StepKey = 'optimize' | 'upload' | 'analyze' | 'extract' | 'enrich'
   const [steps, setSteps] = useState<Array<{ key: StepKey; label: string; status: 'pending' | 'active' | 'done'; icon: any; description: string }>>([
     { key: 'optimize', label: 'Optimizing', status: 'pending', icon: Layers, description: 'Enhancing image quality' },
     { key: 'upload', label: 'Uploading', status: 'pending', icon: Zap, description: 'Secure transfer to AI servers' },
     { key: 'analyze', label: 'Vision AI', status: 'pending', icon: Eye, description: 'Computer vision analysis' },
     { key: 'extract', label: 'Text OCR', status: 'pending', icon: Brain, description: 'Extracting readable text' },
-    { key: 'enrich', label: 'Enriching', status: 'pending', icon: Cpu, description: 'Matching book metadata' },
-    { key: 'complete', label: 'Complete', status: 'pending', icon: CheckCircle2, description: 'Finalizing results' }
+    { key: 'enrich', label: 'Enriching', status: 'pending', icon: Cpu, description: 'Matching book metadata' }
   ])
 
   useEffect(() => {
     return () => {
       if (retryTimerRef.current) window.clearInterval(retryTimerRef.current)
       if (selectedPreview) URL.revokeObjectURL(selectedPreview)
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop())
+      }
     }
-  }, [selectedPreview])
+  }, [selectedPreview, cameraStream])
 
   const simulateDetection = useCallback(() => {
     // Simulate object detection for visual feedback
@@ -312,6 +319,199 @@ export function HomePage() {
     }
   }
 
+  const startCamera = async () => {
+    setCameraLoading(true)
+    setShowCamera(true)
+    setCameraError(null)
+
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (cameraLoading) {
+        console.error('Camera loading timeout')
+        setCameraLoading(false)
+        setCameraError('Camera loading timeout. Please try again.')
+        toast.error('Camera loading timeout. Please try again.')
+      }
+    }, 10000) // 10 second timeout
+
+    try {
+      console.log('Requesting camera access...')
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported in this browser')
+      }
+
+      // Try to get rear camera first, fallback to any camera
+      let stream: MediaStream
+      try {
+        console.log('Trying rear camera...')
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment', // Use rear camera on mobile
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        })
+        console.log('Rear camera accessed successfully')
+      } catch (environmentError) {
+        console.log('Rear camera not available, trying any camera:', environmentError)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        })
+        console.log('Any camera accessed successfully')
+      }
+
+      console.log('Stream obtained:', stream)
+      console.log('Stream tracks:', stream.getTracks())
+
+      setCameraStream(stream)
+
+      // Wait for video element to be available
+      if (videoRef.current) {
+        console.log('Setting video srcObject...')
+        videoRef.current.srcObject = stream
+
+        // Add event listeners
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log('Video started playing')
+            }).catch((playError) => {
+              console.error('Video play failed:', playError)
+              setCameraLoading(false)
+              toast.error('Failed to start camera video')
+            })
+          }
+        }
+
+        videoRef.current.oncanplay = () => {
+          console.log('Video can play - camera ready')
+          clearTimeout(timeoutId)
+          setCameraLoading(false)
+          setCameraError(null)
+          toast.success('Camera activated! Position your bookshelf and click capture.')
+        }
+
+        videoRef.current.onerror = (e) => {
+          console.error('Video error:', e)
+          clearTimeout(timeoutId)
+          setCameraLoading(false)
+          setCameraError('Camera video failed to load')
+          toast.error('Camera video failed to load')
+        }
+
+        videoRef.current.onloadstart = () => {
+          console.log('Video load started')
+        }
+
+        videoRef.current.onloadeddata = () => {
+          console.log('Video data loaded')
+        }
+
+      } else {
+        console.error('Video ref not available')
+        clearTimeout(timeoutId)
+        setCameraLoading(false)
+        setCameraError('Camera interface not ready')
+        toast.error('Camera interface not ready')
+      }
+
+    } catch (error) {
+      console.error('Camera access failed:', error)
+      clearTimeout(timeoutId)
+      setCameraLoading(false)
+      setShowCamera(false)
+
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          toast.error('Camera permission denied. Please allow camera access and try again.')
+        } else if (error.name === 'NotFoundError') {
+          toast.error('No camera found on this device.')
+        } else if (error.name === 'NotSupportedError') {
+          toast.error('Camera not supported in this browser.')
+        } else {
+          toast.error(`Camera error: ${error.message}`)
+        }
+      } else {
+        toast.error('Camera access denied. Please allow camera permissions and try again.')
+      }
+    }
+  }
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+    setShowCamera(false)
+    setCameraLoading(false)
+    setCameraError(null)
+  }
+
+  const captureFromCamera = () => {
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('Video or canvas ref not available')
+      toast.error('Camera not ready. Please try again.')
+      return
+    }
+
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+
+    if (!ctx) {
+      console.error('Canvas context not available')
+      toast.error('Canvas not ready. Please try again.')
+      return
+    }
+
+    // Check if video is ready
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('Video dimensions not ready:', video.videoWidth, video.videoHeight)
+      toast.error('Camera not ready. Please wait a moment and try again.')
+      return
+    }
+
+    console.log('Capturing image with dimensions:', video.videoWidth, 'x', video.videoHeight)
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+
+    // Draw current video frame to canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    // Convert canvas to blob
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        console.error('Failed to create blob from canvas')
+        toast.error('Failed to capture image. Please try again.')
+        return
+      }
+
+      console.log('Blob created successfully, size:', blob.size)
+
+      // Create file from blob
+      const file = new File([blob], `camera-capture-${Date.now()}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      })
+
+      // Stop camera
+      stopCamera()
+
+      // Process the captured image
+      toast.info('Image captured! Processing...')
+      await handleFileSelect(file)
+    }, 'image/jpeg', 0.9)
+  }
+
+
   const handleFileSelect = async (file: File) => {
     if (!file || !file.type.startsWith('image/')) {
       toast.error('Please select a valid image file')
@@ -334,8 +534,6 @@ export function HomePage() {
     // Reset all steps
     setSteps(prev => prev.map(s => ({ ...s, status: 'pending' as const })))
     setSteps(prev => prev.map(s => s.key === 'optimize' ? { ...s, status: 'active' } : s))
-
-    setTimeout(() => progressRegionRef.current?.focus(), 0)
 
     try {
       const previewUrl = URL.createObjectURL(file)
@@ -410,9 +608,8 @@ export function HomePage() {
         modelUsed: scanResult.model_used
       })
 
-      // Step 6: Complete
+      // Step 5: Complete (enrichment is the final step)
       setSteps(prev => prev.map(s => s.key === 'enrich' ? { ...s, status: 'done' } : s))
-      setSteps(prev => prev.map(s => s.key === 'complete' ? { ...s, status: 'active' } : s))
 
       const modelName = scanResult.model_used === 'groq' ? 'Groq Vision' :
                        scanResult.model_used === 'gcv' ? 'Google Vision + NVIDIA NIM' :
@@ -502,6 +699,7 @@ export function HomePage() {
     return blob
   }
 
+
   async function uploadWithProgress(blob: Blob, onProgress: (pct: number) => void) {
     return new Promise<any>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
@@ -577,23 +775,41 @@ export function HomePage() {
           </div>
 
           <div className="space-y-6 relative">
+            <div className="max-w-6xl mx-auto px-6">
+              {selectedPreview ? (
+                /* Display uploaded image in place of header text */
+                <div className="mx-auto w-[600px] h-[450px] relative">
+                  <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-primary/30 shadow-2xl bg-gradient-to-br from-card/90 to-primary/10 backdrop-blur-sm">
+                    <img
+                      src={selectedPreview}
+                      alt="Uploaded bookshelf image"
+                      className="w-full h-full object-contain bg-black/5"
+                    />
 
-            <h1 className="text-5xl md:text-7xl font-black text-foreground leading-[0.9] tracking-tight">
-              <span className="block">Transform Your</span>
-              <span className="block bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
-                Library
-              </span>
-              <span className="block text-3xl md:text-5xl font-normal text-muted-foreground mt-2">
-                with AI Intelligence
-              </span>
-            </h1>
+                  </div>
+                </div>
+              ) : (
+                /* Original header text when no image uploaded */
+                <>
+                  <h1 className="text-5xl md:text-7xl font-black text-foreground leading-[0.9] tracking-tight">
+                    <span className="block">Transform Your</span>
+                    <span className="block bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
+                      Library
+                    </span>
+                    <span className="block text-3xl md:text-5xl font-normal text-muted-foreground mt-2">
+                      with AI Intelligence
+                    </span>
+                  </h1>
 
-            {!showUploadCard && (
-              <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
-                Our advanced Vision Models instantly recognize book spines, extract metadata, and enrich your collection
-                with <span className="text-primary font-semibold">High accuracy</span> in real-time.
-              </p>
-            )}
+                  {!showUploadCard && (
+                    <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed mt-6">
+                      Our advanced Vision Models instantly recognize book spines, extract metadata, and enrich your collection
+                      with <span className="text-primary font-semibold">High accuracy</span> in real-time.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
         </div>
@@ -645,7 +861,7 @@ export function HomePage() {
 
         {/* Main Upload Section - Futuristic AI Interface */}
         {showUploadCard && (
-        <div className="max-w-3xl mx-auto">
+        <div className="w-full mx-auto">
           <Card className={cn(
             "relative overflow-hidden transition-all duration-700",
             "bg-gradient-to-br from-card/90 via-card to-primary/10",
@@ -714,7 +930,7 @@ export function HomePage() {
                         variant="outline"
                         size="lg"
                         className="gap-3 px-8 py-4 text-base font-semibold border-2 border-primary/40 hover:border-primary hover:bg-primary/10 hover:scale-105 transition-all duration-300"
-                        onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click() }}
+                        onClick={(e) => { e.stopPropagation(); startCamera() }}
                         disabled={isUploading}
                       >
                         <Camera className="h-5 w-5" />
@@ -742,71 +958,61 @@ export function HomePage() {
                       </div>
 
                       {/* AI Provider Status */}
-                      <div className="flex items-center justify-center gap-6 text-xs">
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                          <span className="text-green-600 font-medium">Groq Vision</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-blue-600/10 border border-blue-500/20">
-                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
-                          <span className="text-blue-600 font-medium">Google Vision</span>
-                        </div>
-                      </div>
+
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="text-center space-y-10">
-                  {/* AI Processing Header */}
-                  <div className="space-y-4">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-primary/30">
-                      <Brain className="h-4 w-4 animate-pulse text-primary" />
-                      <span className="text-sm font-semibold text-primary">AI Processing Active</span>
+                  {/* Enhanced AI Processing Steps */}
+                  <div className="max-w-6xl mx-auto">
+                    <div className="bg-gradient-to-r from-card/50 to-card/80 rounded-2xl p-6 backdrop-blur-sm border border-primary/20">
+                      <h3 className="text-lg font-semibold text-center mb-6 text-foreground">Neural Network Pipeline</h3>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {steps.map((step) => {
+                          const Icon = step.icon
+                          return (
+                            <div
+                              key={step.key}
+                              className={cn(
+                                "flex items-center gap-2 p-3 rounded-xl transition-all duration-500 min-w-[140px]",
+                                step.status === 'active' && "bg-gradient-to-r from-primary/20 to-blue-500/20 scale-105",
+                                step.status === 'done' && "bg-gradient-to-r from-green-500/20 to-emerald-500/20",
+                                step.status === 'pending' && "bg-muted/30"
+                              )}
+                            >
+                              <div className="flex-shrink-0">
+                                {step.status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                                {step.status === 'active' && <Icon className="h-4 w-4 text-primary animate-pulse" />}
+                                {step.status === 'pending' && <Icon className="h-4 w-4 text-muted-foreground opacity-50" />}
+                              </div>
+                              <div className="flex-1 text-center">
+                                <div className={cn(
+                                  "font-medium text-xs",
+                                  step.status === 'pending' ? 'text-muted-foreground' : 'text-foreground'
+                                )}>
+                                  {step.label}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Enhanced Preview with Detection Overlay */}
-                  {selectedPreview && (
-                    <div className="mx-auto max-w-lg relative">
-                      <div className="relative rounded-2xl overflow-hidden border-2 border-primary/30 shadow-2xl">
-                        <img src={selectedPreview} alt="AI analyzing bookshelf" className="w-full max-h-80 object-contain bg-black/5 rounded-xl" />
-
-                        {/* Overlay detection boxes */}
-                        {detectedObjects.map((obj, i) => (
-                          <div
-                            key={i}
-                            className="absolute border-2 border-green-400 bg-green-400/10 animate-pulse"
-                            style={{
-                              left: `${obj.x * 100}%`,
-                              top: `${obj.y * 100}%`,
-                              width: `${obj.w * 100}%`,
-                              height: `${obj.h * 100}%`,
-                            }}
-                          >
-                            <div className="absolute -top-6 left-0 bg-green-400 text-white px-2 py-1 rounded text-xs font-mono">
-                              {Math.round(obj.confidence * 100)}%
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* Scanning line effect */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/30 to-transparent h-1 animate-pulse"></div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Enhanced Processing Animation */}
                   <div className="relative">
-                    <div className="w-40 h-40 mx-auto">
+                    <div className="w-24 h-24 mx-auto">
                       {/* Multiple rotating rings */}
-                      <div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
-                      <div className="absolute inset-4 rounded-full border-4 border-blue-500/20 border-r-blue-500 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '3s' }}></div>
-                      <div className="absolute inset-8 rounded-full border-4 border-purple-500/20 border-b-purple-500 animate-spin" style={{ animationDuration: '4s' }}></div>
+                      <div className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary animate-spin"></div>
+                      <div className="absolute inset-2 rounded-full border-2 border-blue-500/20 border-r-blue-500 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '3s' }}></div>
+                      <div className="absolute inset-4 rounded-full border-2 border-purple-500/20 border-b-purple-500 animate-spin" style={{ animationDuration: '4s' }}></div>
 
                       {/* Central AI icon */}
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center shadow-2xl">
-                          <Brain className="h-8 w-8 text-white animate-pulse" />
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-500 rounded-full flex items-center justify-center shadow-2xl">
+                          <Brain className="h-5 w-5 text-white animate-pulse" />
                         </div>
                       </div>
                     </div>
@@ -820,142 +1026,10 @@ export function HomePage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Enhanced AI Processing Steps */}
-                  <div className="max-w-2xl mx-auto">
-                    <div className="bg-gradient-to-r from-card/50 to-card/80 rounded-2xl p-6 backdrop-blur-sm border border-primary/20">
-                      <h3 className="text-lg font-semibold text-center mb-6 text-foreground">Neural Network Pipeline</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {steps.map((step) => {
-                          const Icon = step.icon
-                          return (
-                            <div
-                              key={step.key}
-                              className={cn(
-                                "flex items-center gap-3 p-3 rounded-xl transition-all duration-500",
-                                step.status === 'active' && "bg-gradient-to-r from-primary/20 to-blue-500/20 scale-105",
-                                step.status === 'done' && "bg-gradient-to-r from-green-500/20 to-emerald-500/20",
-                                step.status === 'pending' && "bg-muted/30"
-                              )}
-                            >
-                              <div className="flex-shrink-0">
-                                {step.status === 'done' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-                                {step.status === 'active' && <Icon className="h-5 w-5 text-primary animate-pulse" />}
-                                {step.status === 'pending' && <Icon className="h-5 w-5 text-muted-foreground opacity-50" />}
-                              </div>
-                              <div className="flex-1 text-left">
-                                <div className={cn(
-                                  "font-medium text-sm",
-                                  step.status === 'pending' ? 'text-muted-foreground' : 'text-foreground'
-                                )}>
-                                  {step.label}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {step.description}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
                   {/* Enhanced Progress Info */}
                   <div className="space-y-6" ref={progressRegionRef as any} tabIndex={-1} aria-live="polite">
-                    <div className="space-y-3">
-                      <h3 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                        {uploadProgress?.message || 'Initializing AI systems...'}
-                    </h3>
 
-                      {uploadProgress && uploadProgress.stage !== 'complete' && (
-                        <div className="max-w-lg mx-auto space-y-4">
-                        <div className="flex justify-between text-sm font-medium">
-                            <span className="capitalize text-muted-foreground flex items-center gap-2">
-                              <Cpu className="h-4 w-4 animate-pulse" />
-                              {uploadProgress.stage} phase
-                            </span>
-                            <span className="text-primary font-mono">{uploadProgress.progress}%</span>
-                        </div>
-                          <div className="relative w-full bg-muted/30 rounded-full h-4 overflow-hidden backdrop-blur-sm" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress.progress}>
-                          <div
-                              className="h-full bg-gradient-to-r from-primary via-blue-500 to-purple-500 rounded-full transition-all duration-700 ease-out relative overflow-hidden"
-                            style={{ width: `${uploadProgress.progress}%` }}
-                            >
-                              {/* Animated shine effect */}
-                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
 
-                    {retryIn !== null && (
-                      <div className="flex items-center justify-center gap-2 text-amber-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm font-medium">Auto-retrying in {retryIn}s...</span>
-                      </div>
-                    )}
-
-                    {uploadProgress?.stage === 'complete' && (
-                      <div className="space-y-6">
-                        <div className="relative">
-                          <div className="absolute -inset-4 bg-gradient-to-r from-green-500/20 via-blue-500/20 to-purple-500/20 rounded-2xl blur-xl animate-pulse"></div>
-                          <Badge variant="success" className="gap-3 px-6 py-3 text-base font-semibold relative bg-gradient-to-r from-green-500 to-emerald-500 border-0">
-                            <CheckCircle2 className="h-5 w-5" />
-                            AI Analysis Complete!
-                        </Badge>
-                        </div>
-                        <p className="text-muted-foreground text-lg">
-                          Preparing your enhanced book collection...
-                        </p>
-                        <div className="flex items-center justify-center gap-4">
-                          <Button
-                            size="lg"
-                            className="gap-3 bg-gradient-to-r from-primary to-blue-600 hover:scale-105 transition-all duration-300 shadow-lg"
-                            onClick={() => navigate('/results')}
-                          >
-                            <Eye className="h-5 w-5" />
-                            View Results
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="lg"
-                            className="gap-3 hover:bg-primary/10 hover:scale-105 transition-all duration-300"
-                            onClick={() => {
-                              setSelectedPreview(null);
-                              setUploadProgress(null);
-                              setIsUploading(false);
-                              setDetectedObjects([]);
-                              setSteps(prev => prev.map(s => ({ ...s, status: 'pending' as const })));
-                            }}
-                          >
-                            <Sparkles className="h-5 w-5" />
-                            Scan Another
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Enhanced Cancel Button */}
-                    {isUploading && uploadProgress?.stage !== 'complete' && (
-                      <div className="flex items-center justify-center">
-                        <Button
-                          variant="ghost"
-                          className="gap-3 hover:bg-red-500/10 hover:text-red-500 transition-all duration-300"
-                          onClick={() => {
-                            currentXHRRef.current?.abort();
-                            setIsUploading(false);
-                            setUploadProgress(null);
-                            setDetectedObjects([]);
-                            setSteps(prev => prev.map(s => ({ ...s, status: 'pending' as const })));
-                            toast.info('AI processing cancelled');
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                          Abort Processing
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -964,9 +1038,104 @@ export function HomePage() {
         </div>
         )}
 
+        {/* Camera Capture Modal */}
+        {showCamera && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="relative w-full max-w-4xl mx-4">
+              <Card className="border border-primary/20 bg-gradient-to-br from-card/90 to-primary/10 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-foreground">Camera Capture</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={stopCamera}
+                        className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Close
+                      </Button>
+                    </div>
+
+                    {/* Camera Preview */}
+                    <div className="relative">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-auto max-h-[60vh] rounded-lg bg-black"
+                        style={{ minHeight: '300px' }}
+                      />
+                      <canvas
+                        ref={canvasRef}
+                        className="hidden"
+                      />
+
+                      {/* Loading overlay */}
+                      {cameraLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                          <div className="text-center text-white">
+                            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                            <div className="text-sm">Loading camera...</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Error overlay */}
+                      {cameraError && !cameraLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                          <div className="text-center text-white p-4">
+                            <div className="text-red-400 mb-2">⚠️</div>
+                            <div className="text-sm mb-4">{cameraError}</div>
+                            <Button
+                              size="sm"
+                              onClick={startCamera}
+                              className="bg-primary hover:bg-primary/90"
+                            >
+                              Retry Camera
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Capture overlay */}
+                      {!cameraLoading && !cameraError && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div className="absolute inset-4 border-2 border-white/50 rounded-lg"></div>
+                          <div className="absolute top-4 left-4 right-4 text-center">
+                            <div className="inline-block px-3 py-1 bg-black/70 text-white text-sm rounded-full backdrop-blur-sm">
+                              Position your bookshelf within the frame
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Capture Button */}
+                    <div className="flex justify-center">
+                      <Button
+                        size="lg"
+                        onClick={captureFromCamera}
+                        disabled={cameraLoading || !!cameraError}
+                        className="gap-3 px-8 py-4 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-lg hover:shadow-xl disabled:opacity-50"
+                      >
+                        <Camera className="h-6 w-6" />
+                        {cameraLoading ? 'Loading Camera...' : cameraError ? 'Camera Error' : 'Capture Image'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
         {/* Groq Toggle and Stats - Under Upload Card */}
         {showUploadCard && (
-          <div className="max-w-3xl mx-auto mt-8 space-y-8">
+          <div className="max-w-4xl mx-auto mt-8 space-y-8">
             {/* Groq Toggle */}
             <div className="flex items-center justify-center">
               <Card className="border border-primary/20 bg-gradient-to-r from-card/80 to-primary/5">
@@ -1196,7 +1365,7 @@ export function HomePage() {
             </Card>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mt-6 max-w-2xl mx-auto">
+            <div className="flex flex-col sm:flex-row gap-3 mt-6 max-w-4xl mx-auto">
               <Button
                 variant="outline"
                 size="lg"
@@ -1273,14 +1442,14 @@ export function HomePage() {
 
         {/* Enhanced Tips Section */}
         <div className="mt-16 max-w-4xl mx-auto">
-          <details className="group rounded-2xl border border-primary/20 bg-gradient-to-br from-card/50 to-primary/5 backdrop-blur-sm hover:border-primary/40 transition-all duration-300">
-            <summary className="cursor-pointer p-6 font-semibold text-lg text-foreground flex items-center gap-3 hover:text-primary transition-colors">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-card/50 to-primary/5 backdrop-blur-sm hover:border-primary/40 transition-all duration-300">
+            <div className="p-6 font-semibold text-lg text-foreground flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center">
                 <Eye className="h-4 w-4 text-primary" />
               </div>
               Optimization Tips for Maximum AI Accuracy
               <Sparkles className="h-5 w-5 text-primary opacity-70 ml-auto" />
-            </summary>
+            </div>
             <div className="px-6 pb-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
@@ -1306,7 +1475,7 @@ export function HomePage() {
           </div>
               </div>
             </div>
-          </details>
+          </div>
         </div>
 
         {/* Enhanced Sample Testing Section */}
@@ -1321,33 +1490,38 @@ export function HomePage() {
                 Experience AI Vision Intelligence
             </h2>
               <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-                No bookshelf ready? Test our neural networks with curated sample datasets.
+                No bookshelf ready? Test our models with a sample datasets.
                 Each sample showcases different AI recognition capabilities.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 pt-8">
               {[
-                { name: 'Compact Shelf', desc: 'Dense collection test', difficulty: 'Medium', icon: Layers },
-                { name: 'Home Library', desc: 'Mixed lighting scenario', difficulty: 'Easy', icon: Eye },
-                { name: 'Book Stack', desc: 'Angle detection test', difficulty: 'Hard', icon: Brain }
+                { name: 'Small Shelf', desc: 'Compact collection test', image: '/static/img/small_shelf.jpg' },
+                { name: 'Jungle Book', desc: 'Single book detection', image: '/static/img/jungle_book.jpg' },
+                { name: 'Mixed Images', desc: 'Various book formats', image: '/static/img/images (1).jpeg' },
+                { name: 'High Res WebP', desc: 'Modern format test', image: '/static/img/2560.webp' },
+                { name: 'Large WebP', desc: 'High resolution test', image: '/static/img/81uBUxgLS1L_2048x2048.webp' }
               ].map((sample, index) => {
-                const IconComp = sample.icon
                 return (
                   <Card key={sample.name} className="group relative overflow-hidden border border-primary/20 bg-gradient-to-br from-card/80 to-primary/5 hover:border-primary/40 hover:scale-105 transition-all duration-300 cursor-pointer">
-                    <CardContent className="p-6">
+                    <CardContent className="p-4">
                       <div className="space-y-4">
+                        {/* Image Preview */}
                         <div className="relative">
-                          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <IconComp className="h-8 w-8 text-primary" />
+                          <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted/30">
+                            <img
+                              src={sample.image}
+                              alt={sample.name}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.src = '/placeholder-book.svg'
+                              }}
+                            />
                           </div>
-                          <div className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                            sample.difficulty === 'Easy' ? 'bg-green-500/20 text-green-600' :
-                            sample.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-600' :
-                            'bg-red-500/20 text-red-600'
-                          }`}>
-                            {sample.difficulty}
-                          </div>
+                          {/* Overlay gradient for better text readability */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg"></div>
                         </div>
                         <div>
                           <h3 className="font-bold text-lg text-foreground">{sample.name}</h3>
@@ -1356,13 +1530,19 @@ export function HomePage() {
                         <Button
                           className="w-full gap-2 bg-gradient-to-r from-primary/80 to-blue-600/80 hover:from-primary hover:to-blue-600 transition-all duration-300"
                           onClick={async () => {
-                            const sampleFiles = ['/small_shelf.jpg', '/test_shelf.jpg', '/test_pixel.png']
+                            const sampleFiles = [
+                              '/static/img/small_shelf.jpg',
+                              '/static/img/jungle_book.jpg',
+                              '/static/img/images (1).jpeg',
+                              '/static/img/2560.webp',
+                              '/static/img/81uBUxgLS1L_2048x2048.webp'
+                            ]
                             try {
                               toast.info(`Loading AI test sample: ${sample.name}`)
                               const resp = await fetch(sampleFiles[index])
                               if (!resp.ok) throw new Error('Sample not available')
                               const blob = await resp.blob()
-                              await handleFileSelect(new File([blob], `${sample.name.toLowerCase()}.jpg`, { type: blob.type }))
+                              await handleFileSelect(new File([blob], `${sample.name.toLowerCase().replace(/\s+/g, '_')}.${blob.type.split('/')[1]}`, { type: blob.type }))
                             } catch (error) {
                               toast.error('Sample image not available. Please upload your own image.')
                             }
@@ -1385,17 +1565,6 @@ export function HomePage() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) handleFileSelect(file)
-          }}
-        />
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0]
