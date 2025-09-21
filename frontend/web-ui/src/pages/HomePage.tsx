@@ -34,7 +34,7 @@ interface EnrichedBook {
 
 export function HomePage() {
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
+  const [, setUploadProgress] = useState<UploadProgress | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [showUploadCard, setShowUploadCard] = useState(false)
   const [enrichedBooks, setEnrichedBooks] = useState<EnrichedBook[]>([])
@@ -48,8 +48,8 @@ export function HomePage() {
   const toast = useToast()
 
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null)
-  const [retryIn, setRetryIn] = useState<number | null>(null)
-  const [detectedObjects, setDetectedObjects] = useState<Array<{x: number, y: number, w: number, h: number, confidence: number}>>([])
+  const [, setRetryIn] = useState<number | null>(null)
+  const [, setDetectedObjects] = useState<Array<{x: number, y: number, w: number, h: number, confidence: number}>>([])
   const [showCamera, setShowCamera] = useState(false)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraLoading, setCameraLoading] = useState(false)
@@ -62,7 +62,7 @@ export function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   type StepKey = 'optimize' | 'upload' | 'analyze' | 'extract' | 'enrich'
-  const [steps, setSteps] = useState<Array<{ key: StepKey; label: string; status: 'pending' | 'active' | 'done'; icon: any; description: string }>>([
+  const [steps, setSteps] = useState<Array<{ key: StepKey; label: string; status: 'pending' | 'active' | 'done'; icon: React.ComponentType; description: string }>>([
     { key: 'optimize', label: 'Optimizing', status: 'pending', icon: Layers, description: 'Enhancing image quality' },
     { key: 'upload', label: 'Uploading', status: 'pending', icon: Zap, description: 'Secure transfer to AI servers' },
     { key: 'analyze', label: 'Vision AI', status: 'pending', icon: Eye, description: 'Computer vision analysis' },
@@ -96,7 +96,7 @@ export function HomePage() {
       const newGroqEnabled = !preferences.groqEnabled
       await updatePreferences({ groqEnabled: newGroqEnabled })
       toast.success(`Groq Vision ${newGroqEnabled ? 'enabled' : 'disabled'}`)
-    } catch (error) {
+    } catch {
       toast.error('Failed to update Groq preference')
     }
   }, [preferences.groqEnabled, updatePreferences, toast])
@@ -130,7 +130,7 @@ export function HomePage() {
     }
   }, [])
 
-  const enrichBooks = async (scanResult: any) => {
+  const enrichBooks = async (scanResult: { spines: Array<{ text: string; candidates?: string[] }> }) => {
     console.log('enrichBooks called with:', scanResult)
     if (!scanResult || !scanResult.spines) {
       console.log('No scanResult or spines found')
@@ -147,8 +147,8 @@ export function HomePage() {
     try {
       // Prepare books for enrichment - use all spines with text
       const booksToEnrich = scanResult.spines
-        .filter((spine: any) => spine.text.trim())
-        .map((spine: any) => {
+        .filter((spine) => spine.text.trim())
+        .map((spine) => {
           // Try to parse title and author from text
           const text = spine.text.trim()
 
@@ -171,7 +171,7 @@ export function HomePage() {
               title = authorFirstMatch[2].trim()
             } else {
               // Pattern 3: Split on common delimiters
-              const parts = text.split(/,|\n|\|/).map((p: string) => p.trim()).filter((p: string) => p)
+              const parts = text.split(/,|\n|\|/).map((p) => p.trim()).filter((p) => p)
               if (parts.length > 1) {
                 title = parts[0]
                 author = parts[1]
@@ -198,7 +198,7 @@ export function HomePage() {
       console.log('API response:', data)
 
       // Map to EnrichedBook format with IDs
-      const enrichedWithIds = (data.books || []).map((book: any, index: number) => ({
+      const enrichedWithIds = (data.books || []).map((book: EnrichedBook, index: number) => ({
         ...book,
         id: `enriched-${Date.now()}-${index}`,
         selected: false
@@ -211,8 +211,8 @@ export function HomePage() {
         scrollToCollection()
       }, 200)
 
-    } catch (error) {
-      console.error('Enrichment failed:', error)
+    } catch {
+      console.error('Enrichment failed')
       toast.error('Failed to get book details. Please try again.')
     } finally {
       setIsEnriching(false)
@@ -247,8 +247,8 @@ export function HomePage() {
 
       toast.success(`Added ${booksToSave.length} book${booksToSave.length !== 1 ? 's' : ''} to your library!`)
 
-    } catch (error) {
-      console.error('Failed to save books:', error)
+    } catch {
+      console.error('Failed to save books')
       toast.error('Failed to save books. Please try again.')
     } finally {
       setIsSaving(false)
@@ -311,8 +311,8 @@ export function HomePage() {
         navigate('/recommendations')
       }, 100)
 
-    } catch (error) {
-      console.error('Failed to generate recommendations:', error)
+    } catch {
+      console.error('Failed to generate recommendations')
       toast.error('Failed to generate recommendations. Please try again.')
     } finally {
       setIsGeneratingRecommendations(false)
@@ -596,7 +596,7 @@ export function HomePage() {
       })
 
       // Transform new scan response to old format for compatibility
-      const transformedSpines = scanResult.books?.map((book: any) => ({
+      const transformedSpines = scanResult.books?.map((book: { bbox: unknown; original_text?: string; title: string; author?: string; isbn?: string }) => ({
         bbox: book.bbox,
         text: book.original_text || `${book.title}${book.author ? ` by ${book.author}` : ''}`,
         candidates: book.isbn ? [book.isbn] : []
@@ -674,7 +674,7 @@ export function HomePage() {
     if (retryTimerRef.current) window.clearInterval(retryTimerRef.current)
     let left = seconds
     setRetryIn(left)
-    // @ts-ignore
+    // @ts-expect-error - window.setInterval returns number in browser
     retryTimerRef.current = window.setInterval(() => {
       left -= 1
       setRetryIn(left)
@@ -701,7 +701,7 @@ export function HomePage() {
 
 
   async function uploadWithProgress(blob: Blob, onProgress: (pct: number) => void) {
-    return new Promise<any>((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       const formData = new FormData()
       formData.append('image', new File([blob], 'scan.jpg', { type: 'image/jpeg' }))
@@ -1543,7 +1543,7 @@ export function HomePage() {
                               if (!resp.ok) throw new Error('Sample not available')
                               const blob = await resp.blob()
                               await handleFileSelect(new File([blob], `${sample.name.toLowerCase().replace(/\s+/g, '_')}.${blob.type.split('/')[1]}`, { type: blob.type }))
-                            } catch (error) {
+                            } catch {
                               toast.error('Sample image not available. Please upload your own image.')
                             }
                           }}
