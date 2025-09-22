@@ -129,7 +129,7 @@ export function createRange(start: number, end: number): number[] {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 }
 
-export function groupBy<T, K extends keyof any>(
+export function groupBy<T, K extends string | number | symbol>(
   array: T[],
   key: (item: T) => K
 ): Record<K, T[]> {

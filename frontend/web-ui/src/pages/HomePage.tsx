@@ -777,10 +777,10 @@ export function HomePage() {
           publisher: b.publisher,
           year: b.year,
           subjects: b.subjects,
-          fingerprint: b.isbn || `${b.title}-${b.author}`.toLowerCase().replace(/\s+/g, '-'),
+          fingerprint: b.isbn || (b.title + '-' + (b.author || '')).toLowerCase().replace(/\s+/g, '-'),
           selected: false
         }
-      }))
+      })
 
       // Save scan result for history
       await saveScanResult({
@@ -797,7 +797,7 @@ export function HomePage() {
             text: b.original_text || `${b.title}${b.author ? ` by ${b.author}` : ''}`,
             candidates: b.isbn ? [b.isbn] : []
           }
-        })),
+        }),
         originalImage: imageDataUrl,
         modelUsed: scanResult.model_used
       })
