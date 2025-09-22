@@ -1,9 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, MoreVertical, Brain, Eye } from 'lucide-react'
+import { ArrowLeft, Settings, MoreVertical, Brain, Eye, Zap } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
+import { Dropdown } from './ui/Dropdown'
 import { ThemeToggle } from './ThemeToggle'
 import { useStorage } from '../contexts/StorageContext'
+import { useToast } from '../contexts/ToastContext'
 
 const pageConfig = {
   '/': {
@@ -60,7 +62,8 @@ const pageConfig = {
 export function TopBar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { books } = useStorage()
+  const { books, preferences, updatePreferences } = useStorage()
+  const toast = useToast()
 
   const config = pageConfig[location.pathname as keyof typeof pageConfig] || {
     title: 'BookScanner',
@@ -68,6 +71,31 @@ export function TopBar() {
     showBack: false,
     showSettings: true,
     showAIStatus: false
+  }
+
+  const aiModelOptions = [
+    {
+      value: 'google',
+      label: 'Google Vision + NVIDIA',
+      icon: Eye,
+      description: 'Slower, less accurate'
+    },
+    {
+      value: 'groq',
+      label: 'Groq Vision',
+      icon: Zap,
+      description: 'Faster, more accurate'
+    }
+  ]
+
+  const handleModelChange = async (value: string) => {
+    try {
+      const newGroqEnabled = value === 'groq'
+      await updatePreferences({ groqEnabled: newGroqEnabled })
+      toast.success(`AI Model switched to ${newGroqEnabled ? 'Groq Vision' : 'Google Vision + NVIDIA'}`)
+    } catch {
+      toast.error('Failed to update AI model preference')
+    }
   }
 
   return (
@@ -117,26 +145,50 @@ export function TopBar() {
           </div>
         </div>
 
+        {/* Stats Section - Center */}
+        <div className="hidden lg:flex items-center gap-6">
+          <div className="text-center group">
+            <div className="relative">
+              <div className="text-lg font-bold text-foreground group-hover:scale-110 transition-transform">
+                {books.length}
+              </div>
+              <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+            </div>
+            <div className="text-xs text-muted-foreground">Books in Library</div>
+          </div>
+          <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent"></div>
+          <div className="text-center group">
+            <div className="text-lg font-bold text-foreground group-hover:scale-110 transition-transform">
+              <span className="bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text text-transparent">
+                2 AI
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">Vision Providers</div>
+          </div>
+          <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent"></div>
+          <div className="text-center group">
+            <div className="text-lg font-bold text-foreground group-hover:scale-110 transition-transform">
+              <span className="bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+                30d
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">Smart Cache</div>
+          </div>
+        </div>
+
         <div className="flex items-center gap-3">
-          {/* AI Status Indicators */}
+          {/* AI Model Selection */}
           {config.showAIStatus && (
             <div className="hidden md:flex items-center gap-2">
-
-
-              {location.pathname === '/' && (
-                <Badge
-                  variant="outline"
-                  className="gap-1 text-xs border-primary/40"
-                >
-                  <Eye className="h-3 w-3" />
-                  {books.length} Books
-                </Badge>
-              )}
-
-
+              <Dropdown
+                options={aiModelOptions}
+                value={preferences.groqEnabled ? 'groq' : 'google'}
+                onValueChange={handleModelChange}
+                displayLabel="Model"
+                className="min-w-[100px]"
+              />
             </div>
           )}
-
 
           <ThemeToggle />
 

@@ -1,7 +1,55 @@
 // API Client for BookScanner
 // Centralized API calls with consistent error handling and configuration
 
-const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || ''
+import type {
+  ScanResult,
+  EnrichBooksRequest,
+  EnrichBooksResponse,
+  HistoryAction,
+  HistoryResponse,
+  Preferences,
+  UpdatePreferencesRequest,
+  UpdatePreferencesResponse,
+  BookAnalysisRequest,
+  BookAnalysisResponse
+} from './types'
+
+// Validate and sanitize gateway URL with fallback to same origin
+function getGatewayUrl(): string {
+  const envUrl = import.meta.env.VITE_GATEWAY_URL
+
+  // If no URL provided, use same origin
+  if (!envUrl || envUrl.trim() === '') {
+    return ''
+  }
+
+  // Validate URL format
+  try {
+    const url = new URL(envUrl)
+
+    // Only allow http/https protocols for security
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      if (import.meta.env.DEV) {
+        console.warn('Invalid VITE_GATEWAY_URL protocol, falling back to same origin:', url.protocol)
+      }
+      return ''
+    }
+
+    return url.origin
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('Invalid VITE_GATEWAY_URL format, falling back to same origin:', envUrl, error)
+    }
+    return ''
+  }
+}
+
+const GATEWAY_URL = getGatewayUrl()
+
+// Log the gateway URL being used for debugging
+if (import.meta.env.DEV) {
+  console.log('API Gateway URL:', GATEWAY_URL || 'same origin (/api)')
+}
 
 interface APIResponse<T = any> {
   success: boolean
@@ -13,25 +61,83 @@ export class APIError extends Error {
   public status: number
   public response?: Response
   public retryAfter?: number
+  public serverMessage?: string
+  public details?: any
 
   constructor(
     message: string,
     status: number,
     response?: Response,
-    retryAfter?: number
+    retryAfter?: number,
+    serverMessage?: string,
+    details?: any
   ) {
     super(message)
     this.name = 'APIError'
     this.status = status
     this.response = response
     this.retryAfter = retryAfter
+    this.serverMessage = serverMessage
+    this.details = details
   }
 }
 
-// Base fetch wrapper with common configuration
+// Exponential backoff with jitter for retries
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function calculateBackoffDelay(attempt: number, baseDelay: number = 1000, maxDelay: number = 30000): number {
+  // Exponential backoff: baseDelay * 2^attempt
+  const exponentialDelay = baseDelay * Math.pow(2, attempt)
+
+  // Add jitter: random value between 0.5 and 1.5 of the exponential delay
+  const jitter = 0.5 + Math.random() // 0.5 to 1.5
+
+  // Cap at maxDelay
+  return Math.min(exponentialDelay * jitter, maxDelay)
+}
+
+// Parse error response to extract server messages
+async function parseErrorResponse(response: Response): Promise<{ message: string; details?: any }> {
+  try {
+    const contentType = response.headers.get('content-type')
+
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await response.json()
+
+      // Try to extract meaningful error message from common error response formats
+      if (errorData.message) {
+        return { message: errorData.message, details: errorData }
+      }
+      if (errorData.error) {
+        return { message: errorData.error, details: errorData }
+      }
+      if (errorData.detail) {
+        return { message: errorData.detail, details: errorData }
+      }
+      if (errorData.errors && Array.isArray(errorData.errors)) {
+        const errorMessages = errorData.errors.map((e: any) => e.message || e).join(', ')
+        return { message: errorMessages, details: errorData }
+      }
+
+      // If it's a structured error object, stringify it
+      return { message: JSON.stringify(errorData), details: errorData }
+    }
+
+    // Fallback to text response
+    const errorText = await response.text()
+    return { message: errorText || 'Unknown error', details: null }
+  } catch {
+    return { message: 'Failed to parse error response', details: null }
+  }
+}
+
+// Base fetch wrapper with common configuration and retry logic
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryAttempt: number = 0
 ): Promise<T> {
   const url = `${GATEWAY_URL}/api${endpoint}`
 
@@ -48,24 +154,47 @@ async function apiFetch<T>(
     const response = await fetch(url, config)
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const { message: serverMessage, details } = await parseErrorResponse(response)
 
-      // Special handling for rate limits
+      // Special handling for rate limits with exponential backoff
       if (response.status === 429) {
         const retryAfter = response.headers.get('retry-after')
         const retrySeconds = retryAfter ? parseInt(retryAfter, 10) : undefined
+
+        // Retry with exponential backoff (max 3 attempts)
+        if (retryAttempt < 3) {
+          const backoffDelay = retrySeconds ? retrySeconds * 1000 : calculateBackoffDelay(retryAttempt)
+
+          if (import.meta.env.DEV) {
+            console.warn(`Rate limit hit, retrying in ${Math.round(backoffDelay / 1000)}s (attempt ${retryAttempt + 1}/3)`)
+          }
+          await delay(backoffDelay)
+
+          return apiFetch<T>(endpoint, options, retryAttempt + 1)
+        }
+
         throw new APIError(
-          `Rate limit exceeded - ${errorText}`,
+          `Rate limit exceeded after ${retryAttempt + 1} attempts: ${serverMessage}`,
           response.status,
           response,
-          retrySeconds
+          retrySeconds,
+          serverMessage,
+          details
         )
       }
 
+      // For other errors, include server message if available
+      const errorMessage = serverMessage
+        ? `API request failed: ${response.status} ${response.statusText} - ${serverMessage}`
+        : `API request failed: ${response.status} ${response.statusText}`
+
       throw new APIError(
-        `API request failed: ${response.status} ${response.statusText} - ${errorText}`,
+        errorMessage,
         response.status,
-        response
+        response,
+        undefined,
+        serverMessage,
+        details
       )
     }
 
@@ -89,10 +218,11 @@ async function apiFetch<T>(
   }
 }
 
-// Specialized fetch for file uploads
+// Specialized fetch for file uploads with retry logic
 async function apiUpload<T>(
   endpoint: string,
-  formData: FormData
+  formData: FormData,
+  retryAttempt: number = 0
 ): Promise<T> {
   const url = `${GATEWAY_URL}/api${endpoint}`
 
@@ -107,11 +237,47 @@ async function apiUpload<T>(
     const response = await fetch(url, config)
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const { message: serverMessage, details } = await parseErrorResponse(response)
+
+      // Special handling for rate limits with exponential backoff
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('retry-after')
+        const retrySeconds = retryAfter ? parseInt(retryAfter, 10) : undefined
+
+        // Retry with exponential backoff (max 3 attempts)
+        if (retryAttempt < 3) {
+          const backoffDelay = retrySeconds ? retrySeconds * 1000 : calculateBackoffDelay(retryAttempt)
+
+          if (import.meta.env.DEV) {
+            console.warn(`Upload rate limit hit, retrying in ${Math.round(backoffDelay / 1000)}s (attempt ${retryAttempt + 1}/3)`)
+          }
+          await delay(backoffDelay)
+
+          return apiUpload<T>(endpoint, formData, retryAttempt + 1)
+        }
+
+        throw new APIError(
+          `Upload rate limit exceeded after ${retryAttempt + 1} attempts: ${serverMessage}`,
+          response.status,
+          response,
+          retrySeconds,
+          serverMessage,
+          details
+        )
+      }
+
+      // For other errors, include server message if available
+      const errorMessage = serverMessage
+        ? `Upload failed: ${response.status} ${response.statusText} - ${serverMessage}`
+        : `Upload failed: ${response.status} ${response.statusText}`
+
       throw new APIError(
-        `Upload failed: ${response.status} ${response.statusText} - ${errorText}`,
+        errorMessage,
         response.status,
-        response
+        response,
+        undefined,
+        serverMessage,
+        details
       )
     }
 
@@ -131,123 +297,44 @@ async function apiUpload<T>(
 // API Methods
 export const api = {
   // Comprehensive Scan endpoint - upload image and get all detected books with metadata
-  async scan(imageFile: File) {
+  async scan(imageFile: File): Promise<ScanResult> {
     const formData = new FormData()
     formData.append('image', imageFile)
 
-    return apiUpload<{
-      success: boolean
-      total_text_regions: number
-      books_detected: number
-      books: Array<{
-        title: string
-        author?: string
-        cover_url?: string
-        year?: number
-        publisher?: string
-        subjects?: string[]
-        isbn?: string
-        original_text: string
-        bbox?: { x: number; y: number; w: number; h: number } | null
-      }>
-      debug_raw_vision?: Array<{
-        raw_text: string
-        bbox?: { x: number; y: number; w: number; h: number } | null
-      }>
-    }>('/scan', formData)
+    return apiUpload<ScanResult>('/scan', formData)
   },
 
   // Books enrichment - get metadata for books
-  async enrichBooks(books: Array<{
-    title: string
-    author?: string
-    isbn?: string
-  }>) {
-    return apiFetch<{
-      books: Array<{
-        title: string
-        author?: string
-        isbn?: string
-        cover_url?: string
-        publisher?: string
-        year?: number
-        subjects?: string[]
-        fingerprint: string
-      }>
-    }>('/books/enrich', {
+  async enrichBooks(books: EnrichBooksRequest['books']): Promise<EnrichBooksResponse> {
+    return apiFetch<EnrichBooksResponse>('/books/enrich', {
       method: 'POST',
       body: JSON.stringify(books)
     })
   },
 
   // History - record book actions
-  async addHistory(action: {
-    book_id: number
-    action: 'saved' | 'removed'
-  }) {
-    return apiFetch<{ success: boolean }>('/history', {
+  async addHistory(action: HistoryAction): Promise<HistoryResponse> {
+    return apiFetch<HistoryResponse>('/history', {
       method: 'POST',
       body: JSON.stringify(action)
     })
   },
 
   // Preferences - get/set user preferences
-  async getPreferences() {
-    return apiFetch<{
-      genres: string[]
-      authors: string[]
-      languages: string[]
-    }>('/preferences')
+  async getPreferences(): Promise<Preferences> {
+    return apiFetch<Preferences>('/preferences')
   },
 
-  async updatePreferences(preferences: {
-    genres?: string[]
-    authors?: string[]
-    languages?: string[]
-    groqEnabled?: boolean
-  }) {
-    return apiFetch<{ success: boolean }>('/preferences', {
+  async updatePreferences(preferences: UpdatePreferencesRequest): Promise<UpdatePreferencesResponse> {
+    return apiFetch<UpdatePreferencesResponse>('/preferences', {
       method: 'PUT',
       body: JSON.stringify(preferences)
     })
   },
 
   // Book Analysis - analyze books against user preferences
-  async analyzeBooks(payload: {
-    books: Array<{
-      title: string
-      author?: string
-      subjects?: string[]
-      year?: number
-      publisher?: string
-      isbn?: string
-    }>
-    user_preferences?: {
-      genres?: string[]
-      authors?: string[]
-      languages?: string[]
-    }
-  }) {
-    return apiFetch<{
-      success: boolean
-      total_books_analyzed: number
-      book_scores: Array<{
-        title: string
-        author?: string
-        score: number
-        recommendation: string
-        match_quality: string
-        is_perfect_match: boolean
-        reasoning: string
-      }>
-      analysis_summary: {
-        perfect_matches: number
-        average_score: number
-        highest_score: number
-      }
-      cached: boolean
-      cache_hit_count: number
-    }>('/recommend', {
+  async analyzeBooks(payload: BookAnalysisRequest): Promise<BookAnalysisResponse> {
+    return apiFetch<BookAnalysisResponse>('/recommend', {
       method: 'POST',
       body: JSON.stringify(payload)
     })

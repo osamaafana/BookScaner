@@ -8,6 +8,7 @@ import { Card, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { useStorage } from '../contexts/StorageContext'
 import { useToast } from '../contexts/ToastContext'
+import { useRecommendationsData } from '../contexts/RecommendationsContext'
 
 interface Recommendation {
   title: string
@@ -28,11 +29,12 @@ export function RecommendationsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddingBook, setIsAddingBook] = useState<string | null>(null)
-  const [debugResponse, setDebugResponse] = useState<unknown>(null)
+  const [, setDebugResponse] = useState<unknown>(null)
   const ranRef = useRef(false) // guard StrictMode double invoke
 
   const { books, addBook, preferences } = useStorage()
   const toast = useToast()
+  const { data: recommendationsData, hasData, bookScores, isCached, cacheHitCount } = useRecommendationsData()
 
   const getScoreColor = (score?: number) => {
     if (score == null) return 'text-muted-foreground'
@@ -57,29 +59,31 @@ export function RecommendationsPage() {
     setError(null)
     try {
       await new Promise(r => setTimeout(r, 300))
-      const raw = localStorage.getItem('generatedRecommendations')
-      if (raw) {
-        const data = JSON.parse(raw)
-        setDebugResponse(data)
 
-        const mapped: Recommendation[] = Array.isArray(data.book_scores)
-          ? data.book_scores.map((s: Record<string, unknown>) => ({
-              title: String(s.title || ''),
-              author: s.author ? String(s.author) : undefined,
-              short_reason: s.recommendation ? String(s.recommendation) : undefined,
-              cover_url: s.cover_url ? String(s.cover_url) : undefined,
-              isbn: s.isbn ? String(s.isbn) : undefined,
-              publisher: s.publisher ? String(s.publisher) : undefined,
-              year: typeof s.year === 'number' ? s.year : undefined,
-              score: typeof s.score === 'number' ? s.score : Number(s.score ?? 0),
-              match_quality: s.match_quality ? String(s.match_quality) : undefined,
-              is_perfect_match: !!s.is_perfect_match,
-              reasoning: s.reasoning ? String(s.reasoning) : undefined
+      if (hasData && recommendationsData) {
+        setDebugResponse(recommendationsData)
+
+        const mapped: Recommendation[] = Array.isArray(bookScores)
+          ? bookScores.map((s) => ({
+              title: s.title,
+              author: s.author,
+              short_reason: s.recommendation,
+              cover_url: undefined, // Not available in book_scores
+              isbn: undefined, // Not available in book_scores
+              publisher: undefined, // Not available in book_scores
+              year: undefined, // Not available in book_scores
+              score: s.score,
+              match_quality: s.match_quality,
+              is_perfect_match: s.is_perfect_match,
+              reasoning: s.reasoning
             }))
           : []
 
         setRecommendations(mapped)
-        if (mapped.length > 0) toast.success(`Loaded ${mapped.length} recommendations`)
+        if (mapped.length > 0) {
+          const cacheMessage = isCached ? ` (${cacheHitCount} cached)` : ''
+          toast.success(`Loaded ${mapped.length} recommendations${cacheMessage}`)
+        }
       } else {
         setRecommendations([])
         setError('No recommendations data available')
@@ -89,7 +93,7 @@ export function RecommendationsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, hasData, recommendationsData, bookScores, isCached, cacheHitCount])
 
   useEffect(() => {
     if (ranRef.current) return
