@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Settings, MoreVertical, Brain, Eye, Zap } from 'lucide-react'
 import { Button } from './ui/Button'
-import { Badge } from './ui/Badge'
 import { Dropdown } from './ui/Dropdown'
 import { ThemeToggle } from './ThemeToggle'
 import { useStorage } from '../contexts/StorageContext'

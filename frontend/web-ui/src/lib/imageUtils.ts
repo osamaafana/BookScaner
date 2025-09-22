@@ -23,13 +23,13 @@ export const HEIC_TYPES = [
 
 // Check if a file is a supported image type
 export function isSupportedImageType(file: File): boolean {
-  return SUPPORTED_IMAGE_TYPES.includes(file.type as any) ||
-         HEIC_TYPES.includes(file.type as any)
+  return SUPPORTED_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_IMAGE_TYPES[number]) ||
+         HEIC_TYPES.includes(file.type as typeof HEIC_TYPES[number])
 }
 
 // Check if a file is HEIC/HEIF format
 export function isHeicFormat(file: File): boolean {
-  return HEIC_TYPES.includes(file.type as any) ||
+  return HEIC_TYPES.includes(file.type as typeof HEIC_TYPES[number]) ||
          file.name.toLowerCase().endsWith('.heic') ||
          file.name.toLowerCase().endsWith('.heif')
 }

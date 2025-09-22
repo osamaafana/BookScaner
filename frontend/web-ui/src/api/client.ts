@@ -51,7 +51,7 @@ if (import.meta.env.DEV) {
   console.log('API Gateway URL:', GATEWAY_URL || 'same origin (/api)')
 }
 
-interface APIResponse<T = any> {
+interface APIResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -62,7 +62,7 @@ export class APIError extends Error {
   public response?: Response
   public retryAfter?: number
   public serverMessage?: string
-  public details?: any
+  public details?: unknown
 
   constructor(
     message: string,
@@ -70,7 +70,7 @@ export class APIError extends Error {
     response?: Response,
     retryAfter?: number,
     serverMessage?: string,
-    details?: any
+    details?: unknown
   ) {
     super(message)
     this.name = 'APIError'
@@ -99,7 +99,7 @@ function calculateBackoffDelay(attempt: number, baseDelay: number = 1000, maxDel
 }
 
 // Parse error response to extract server messages
-async function parseErrorResponse(response: Response): Promise<{ message: string; details?: any }> {
+async function parseErrorResponse(response: Response): Promise<{ message: string; details?: unknown }> {
   try {
     const contentType = response.headers.get('content-type')
 
@@ -117,7 +117,7 @@ async function parseErrorResponse(response: Response): Promise<{ message: string
         return { message: errorData.detail, details: errorData }
       }
       if (errorData.errors && Array.isArray(errorData.errors)) {
-        const errorMessages = errorData.errors.map((e: any) => e.message || e).join(', ')
+        const errorMessages = errorData.errors.map((e: unknown) => (e as { message?: string })?.message || String(e)).join(', ')
         return { message: errorMessages, details: errorData }
       }
 

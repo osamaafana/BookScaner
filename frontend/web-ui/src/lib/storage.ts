@@ -19,7 +19,7 @@ export const STORAGE_VERSIONS = {
 } as const
 
 // Generic storage item with TTL
-interface StorageItem<T = any> {
+interface StorageItem<T = unknown> {
   t: number // timestamp
   v: string // version
   d: T // data
@@ -184,7 +184,7 @@ export function cleanupExpiredStorage(): void {
 // Specific storage functions for common use cases
 export const storage = {
   // Recommendations data
-  setRecommendations: (data: any) =>
+  setRecommendations: (data: unknown) =>
     setStorageItem('recs', STORAGE_VERSIONS.RECOMMENDATIONS, data, TTL.RECOMMENDATIONS),
 
   getRecommendations: () =>
@@ -194,14 +194,14 @@ export const storage = {
     removeStorageItem('recs', STORAGE_VERSIONS.RECOMMENDATIONS),
 
   // Scan results
-  setScanResults: (data: any) =>
+  setScanResults: (data: unknown) =>
     setStorageItem('scans', STORAGE_VERSIONS.SCAN_RESULTS, data, TTL.SCAN_RESULTS),
 
   getScanResults: () =>
     getStorageItem('scans', STORAGE_VERSIONS.SCAN_RESULTS, TTL.SCAN_RESULTS),
 
   // Preferences
-  setPreferences: (data: any) =>
+  setPreferences: (data: unknown) =>
     setStorageItem('prefs', STORAGE_VERSIONS.PREFERENCES, data, TTL.PREFERENCES),
 
   getPreferences: () =>

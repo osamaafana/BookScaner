@@ -49,7 +49,7 @@ interface BookScannerDB extends DBSchema {
   }
   preferences: {
     key: string
-    value: any
+    value: unknown
   }
   scanResults: {
     key: string
@@ -413,7 +413,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Helper: Sync book removal with backend
-  const syncBookRemovalWithBackend = async (_bookId: string): Promise<boolean> => {
+  const syncBookRemovalWithBackend = async (): Promise<boolean> => {
     try {
       // No-op until a stable mapping exists
       return true

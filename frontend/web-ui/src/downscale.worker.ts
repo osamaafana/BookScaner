@@ -19,7 +19,7 @@ self.onmessage = async (e) => {
     const scale = Math.min(1, maxEdge / Math.max(bmp.width, bmp.height));
     console.log('Worker: Scale calculated:', scale);
 
-    // @ts-ignore OffscreenCanvas in worker
+    // @ts-expect-error OffscreenCanvas in worker
     const c = new OffscreenCanvas(Math.round(bmp.width*scale), Math.round(bmp.height*scale));
     const ctx = c.getContext('2d');
 

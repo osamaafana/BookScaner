@@ -13,7 +13,7 @@ interface HistoryItem {
   title: string
   description: string
   timestamp: Date
-  data?: any
+  data?: unknown
   booksCount?: number
 }
 
@@ -64,12 +64,14 @@ export function HistoryPage() {
     switch (selectedPeriod) {
       case 'today':
         return itemDate.toDateString() === now.toDateString()
-      case 'week':
+      case 'week': {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         return itemDate >= weekAgo
-      case 'month':
+      }
+      case 'month': {
         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
         return itemDate >= monthAgo
+      }
       default:
         return true
     }

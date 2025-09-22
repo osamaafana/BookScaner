@@ -112,7 +112,11 @@ export function RecommendationsPage() {
       })
       setRecommendations(prev => prev.filter(r => r !== rec))
       toast.success(`Added "${rec.title}" to your library!`)
-      try { (navigator as unknown as { vibrate?: (pattern: number[]) => void }).vibrate?.([50, 100, 50]) } catch {}
+      try {
+        (navigator as unknown as { vibrate?: (pattern: number[]) => void }).vibrate?.([50, 100, 50])
+      } catch {
+        // Vibration not supported
+      }
     } catch {
       toast.error('Failed to add book to library')
     } finally {

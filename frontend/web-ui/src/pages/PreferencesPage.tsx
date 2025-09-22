@@ -127,7 +127,7 @@ export function PreferencesPage() {
 
       setHasChanges(false)
       toast.success('Preferences saved successfully!')
-    } catch (error) {
+    } catch {
       toast.error('Failed to save preferences')
     }
   }

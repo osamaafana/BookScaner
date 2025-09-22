@@ -543,11 +543,11 @@ export function HomePage() {
     const track = cameraStream.getVideoTracks()[0]
 
     // Try ImageCapture API first for full-resolution photos (iOS Safari compatibility)
-    // @ts-ignore - ImageCapture API
+    // @ts-expect-error - ImageCapture API
     if ('ImageCapture' in window && track) {
       try {
         devLog('Using ImageCapture API for high-quality photo')
-        // @ts-ignore - ImageCapture API
+        // @ts-expect-error - ImageCapture API
         const imageCapture = new ImageCapture(track)
         const blob = await imageCapture.takePhoto().catch((error) => {
           devWarn('ImageCapture failed, falling back to canvas:', error)
@@ -758,25 +758,45 @@ export function HomePage() {
       const enrichedBooks = scanResult.books || []
 
       // Transform to EnrichedBook format with IDs
-      const enrichedWithIds = enrichedBooks.map((book: any, index: number) => ({
-        id: `enriched-${Date.now()}-${index}`,
-        title: book.title,
-        author: book.author,
-        isbn: book.isbn,
-        cover_url: book.cover_url,
-        publisher: book.publisher,
-        year: book.year,
-        subjects: book.subjects,
-        fingerprint: book.isbn || `${book.title}-${book.author}`.toLowerCase().replace(/\s+/g, '-'),
-        selected: false
+      const enrichedWithIds = enrichedBooks.map((book: unknown, index: number) => {
+        const b = book as {
+          title: string
+          author?: string
+          isbn?: string
+          cover_url?: string
+          publisher?: string
+          year?: number
+          subjects?: string[]
+        }
+        return {
+          id: `enriched-${Date.now()}-${index}`,
+          title: b.title,
+          author: b.author,
+          isbn: b.isbn,
+          cover_url: b.cover_url,
+          publisher: b.publisher,
+          year: b.year,
+          subjects: b.subjects,
+          fingerprint: b.isbn || `${b.title}-${b.author}`.toLowerCase().replace(/\s+/g, '-'),
+          selected: false
+        }
       }))
 
       // Save scan result for history
       await saveScanResult({
-        spines: enrichedBooks.map((book: any) => ({
-        bbox: book.bbox,
-        text: book.original_text || `${book.title}${book.author ? ` by ${book.author}` : ''}`,
-        candidates: book.isbn ? [book.isbn] : []
+        spines: enrichedBooks.map((book: unknown) => {
+          const b = book as {
+            bbox?: unknown
+            original_text?: string
+            title: string
+            author?: string
+            isbn?: string
+          }
+          return {
+            bbox: b.bbox,
+            text: b.original_text || `${b.title}${b.author ? ` by ${b.author}` : ''}`,
+            candidates: b.isbn ? [b.isbn] : []
+          }
         })),
         originalImage: imageDataUrl,
         modelUsed: scanResult.model_used
