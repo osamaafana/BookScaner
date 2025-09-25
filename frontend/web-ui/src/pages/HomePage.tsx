@@ -14,6 +14,7 @@ import { processImageFile, getImageFormatErrorMessage, isHeicFormat } from '../l
 import { getModelLabel, type ScanResult } from '../api/types'
 import { useRecommendations } from '../contexts/RecommendationsContext'
 import { devLog, devWarn, devError } from '../lib/devLog'
+import { Footer } from '../components/Footer'
 
 // Lazy-load camera modal to reduce initial bundle size
 const CameraModal = lazy(() => import('../components/CameraModal').then(module => ({ default: module.CameraModal })))
@@ -58,14 +59,14 @@ export function HomePage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [dragOver, setDragOver] = useState(false)
-  const [showUploadCard, setShowUploadCard] = useState(false)
+  const uploadCardRef = useRef<HTMLDivElement>(null)
   const [enrichedBooks, setEnrichedBooks] = useState<EnrichedBook[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
   const [modelUsed, setModelUsed] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
-  const { saveScanResult, preferences, addBook } = useStorage()
+  const { saveScanResult, preferences, addBook, updatePreferences } = useStorage()
   const toast = useToast()
   const { setRecommendationsData } = useRecommendations()
 
@@ -77,6 +78,8 @@ export function HomePage() {
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [showAITesting, setShowAITesting] = useState(false)
+  const [showPreferencesMode, setShowPreferencesMode] = useState(false)
+  const [showMainContent, setShowMainContent] = useState(false)
   const retryTimerRef = useRef<number | null>(null)
   const currentXHRRef = useRef<XMLHttpRequest | null>(null)
   const collectionCardRef = useRef<HTMLDivElement>(null)
@@ -148,9 +151,12 @@ export function HomePage() {
   const scrollToCollection = useCallback(() => {
     if (collectionCardRef.current) {
       setTimeout(() => {
-        // Use scrollIntoView for better browser compatibility
-        collectionCardRef.current?.scrollIntoView({
-          block: 'center',
+        // Calculate offset to position card perfectly in center
+        const elementTop = collectionCardRef.current!.getBoundingClientRect().top
+        const offset = elementTop - (window.innerHeight / 2) + (collectionCardRef.current!.offsetHeight / 2)
+
+        window.scrollBy({
+          top: offset,
           behavior: 'smooth'
         })
 
@@ -171,6 +177,93 @@ export function HomePage() {
     setTimeout(() => {
       scrollToCollection()
     }, 200)
+  }, [scrollToCollection])
+
+  // Handle start discovery process - check preferences first
+  const handleStartDiscovery = useCallback(() => {
+    // Show main content when start button is pressed
+    setShowMainContent(true)
+
+    const hasGenres = preferences.genres.length > 0
+    const hasLanguages = preferences.languages.length > 0
+
+    if (!hasGenres || !hasLanguages) {
+      // Show preferences mode if user hasn't set preferences
+      setShowPreferencesMode(true)
+      // Scroll to preferences card with smooth animation
+      setTimeout(() => {
+        if (uploadCardRef.current) {
+          // Calculate offset to position card perfectly in center
+          const elementTop = uploadCardRef.current.getBoundingClientRect().top
+          const offset = elementTop - (window.innerHeight / 2) + (uploadCardRef.current.offsetHeight / 2)
+
+          window.scrollBy({
+            top: offset,
+            behavior: 'smooth'
+          })
+
+          // Add a subtle highlight effect to the preferences card
+          const card = uploadCardRef.current
+          if (card) {
+            card.style.transition = 'all 0.5s ease'
+            card.style.transform = 'scale(1.02)'
+            card.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(59, 130, 246, 0.5)'
+
+            setTimeout(() => {
+              card.style.transform = 'scale(1)'
+              card.style.boxShadow = ''
+            }, 1000)
+          }
+        }
+      }, 100)
+    } else {
+      // Scroll to upload card if preferences are already set
+      scrollToUploadCard()
+    }
+  }, [preferences])
+
+  // Handle preferences submission
+  const handlePreferencesSubmit = useCallback(async (genres: string[], languages: string[]) => {
+    try {
+      await updatePreferences({ genres, languages })
+      setShowPreferencesMode(false)
+      toast.success('Preferences saved! You can now upload your bookshelf image.')
+
+      // Small delay to let the UI update, then scroll to upload card
+      setTimeout(() => scrollToUploadCard(), 600)
+    } catch (error) {
+      devError('Failed to save preferences:', error)
+      toast.error('Failed to save preferences. Please try again.')
+    }
+  }, [updatePreferences])
+
+  // Scroll to upload card with smooth animation
+  const scrollToUploadCard = useCallback(() => {
+    if (uploadCardRef.current) {
+      setTimeout(() => {
+        // Calculate offset to position card perfectly in center
+        const elementTop = uploadCardRef.current!.getBoundingClientRect().top
+        const offset = elementTop - (window.innerHeight / 2) + (uploadCardRef.current!.offsetHeight / 2)
+
+        window.scrollBy({
+          top: offset,
+          behavior: 'smooth'
+        })
+
+        // Add a subtle highlight effect to the upload card
+        const card = uploadCardRef.current
+        if (card) {
+          card.style.transition = 'all 0.5s ease'
+          card.style.transform = 'scale(1.02)'
+          card.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(59, 130, 246, 0.5)'
+
+          setTimeout(() => {
+            card.style.transform = 'scale(1)'
+            card.style.boxShadow = ''
+          }, 1000)
+        }
+      }, 100)
+    }
   }, [])
 
   // Worker-based image downscaling to avoid blocking main thread
@@ -543,13 +636,11 @@ export function HomePage() {
     const track = cameraStream.getVideoTracks()[0]
 
     // Try ImageCapture API first for full-resolution photos (iOS Safari compatibility)
-    // @ts-expect-error - ImageCapture API
     if ('ImageCapture' in window && track) {
       try {
         devLog('Using ImageCapture API for high-quality photo')
-        // @ts-expect-error - ImageCapture API
-        const imageCapture = new ImageCapture(track)
-        const blob = await imageCapture.takePhoto().catch((error) => {
+        const imageCapture = new (window as any).ImageCapture(track)
+        const blob = await imageCapture.takePhoto().catch((error: unknown) => {
           devWarn('ImageCapture failed, falling back to canvas:', error)
           return null
         })
@@ -784,16 +875,16 @@ export function HomePage() {
 
       // Save scan result for history
       await saveScanResult({
-        spines: enrichedBooks.map((book: unknown) => {
+        spines: enrichedBooks.map((book) => {
           const b = book as {
-            bbox?: unknown
+            bbox?: { x: number; y: number; w: number; h: number } | null
             original_text?: string
             title: string
             author?: string
             isbn?: string
           }
           return {
-            bbox: b.bbox,
+            bbox: b.bbox || null,
             text: b.original_text || `${b.title}${b.author ? ` by ${b.author}` : ''}`,
             candidates: b.isbn ? [b.isbn] : []
           }
@@ -987,46 +1078,82 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen" aria-busy={isUploading}>
-      <div className="container mx-auto px-4 py-8">
-        {/* Hero Section - Futuristic AI Style */}
-        <div className="text-center space-y-8 mb-16 relative">
-          {/* Animated background elements */}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5" aria-busy={isUploading}>
+      {/* Subtle background pattern covering full viewport width */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 25% 25%, hsl(var(--primary)) 2px, transparent 2px),
+                             radial-gradient(circle at 75% 75%, hsl(var(--primary)) 1px, transparent 1px)`,
+          backgroundSize: '60px 60px',
+          backgroundPosition: '0 0, 30px 30px'
+        }}></div>
+      </div>
+
+      {/* Content with responsive padding */}
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-12 relative z-10">
+        {/* Hero Section - Advanced AI Interface */}
+        <div className="text-center space-y-12 mb-20 relative">
+          {/* Enhanced animated background elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-20 left-1/4 w-2 h-2 bg-primary/30 rounded-full animate-pulse"></div>
-            <div className="absolute top-32 right-1/3 w-1 h-1 bg-blue-400/40 rounded-full animate-ping"></div>
-            <div className="absolute bottom-40 left-1/3 w-1.5 h-1.5 bg-purple-400/30 rounded-full animate-pulse"></div>
+            <div className="absolute top-20 left-1/4 w-3 h-3 bg-primary/40 rounded-full animate-pulse shadow-lg shadow-primary/50"></div>
+            <div className="absolute top-32 right-1/3 w-2 h-2 bg-blue-400/50 rounded-full animate-ping shadow-lg shadow-blue-400/50"></div>
+            <div className="absolute bottom-40 left-1/3 w-2 h-2 bg-purple-400/40 rounded-full animate-pulse shadow-lg shadow-purple-400/50"></div>
+            <div className="absolute top-40 left-1/2 w-1 h-1 bg-cyan-400/60 rounded-full animate-bounce"></div>
+            <div className="absolute bottom-60 right-1/4 w-1.5 h-1.5 bg-indigo-400/50 rounded-full animate-pulse"></div>
+
+            {/* Gradient orbs */}
+            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gradient-to-r from-primary/10 to-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-40 h-40 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
           </div>
 
-          <div className="space-y-6 relative">
-            <div className="max-w-6xl mx-auto px-6">
-              {/* Always show the header */}
-                  <h1 className="text-5xl md:text-7xl font-black text-foreground leading-[0.9] tracking-tight">
-                    <span className="block">Transform Your</span>
-                    <span className="block bg-gradient-to-r from-primary via-blue-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
-                      Library
-                    </span>
-                    <span className="block text-3xl md:text-5xl font-normal text-muted-foreground mt-2">
-                      with AI Intelligence
-                    </span>
-                  </h1>
+          <div className="space-y-8 relative z-10">
+            <div className="w-full max-w-none mx-0 px-0">
+              {/* Enhanced header with better typography */}
+              <div className="space-y-6">
+                <h1 className="text-6xl md:text-8xl font-black text-foreground leading-[0.85] tracking-tight">
+                  <span className="block relative">
+                    Transform Your
+                    <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0 rounded-full"></div>
+                  </span>
+                  <span className="block bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent animate-gradient bg-300% leading-tight">
+                    Library
+                  </span>
+                  <span className="block text-4xl md:text-6xl font-light text-muted-foreground/90 mt-4 leading-relaxed">
+                    with AI Intelligence
+                  </span>
+                </h1>
 
-                  {!showUploadCard && (
-                    <p className="text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed mt-6">
-                      Our advanced Vision Models instantly recognize book spines, extract metadata, and enrich your collection
-                      with <span className="text-primary font-semibold">High accuracy</span> in real-time.
-                    </p>
-                  )}
+                <div className="max-w-5xl mx-auto space-y-4">
+                  <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed font-light">
+                    Our advanced Vision Models instantly recognize book spines, extract metadata, and enrich your collection
+                    with <span className="text-primary font-semibold px-2 py-1 rounded-md">High accuracy</span> in real-time.
+                  </p>
 
-              {/* Show uploaded image below header when available */}
+                </div>
+              </div>
+
+              {/* Enhanced uploaded image preview */}
               {selectedPreview && (
-                <div className="mx-auto w-[600px] h-[450px] relative mt-8">
-                  <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-primary/30 shadow-2xl bg-gradient-to-br from-card/90 to-primary/10 backdrop-blur-sm">
+                <div className="mx-auto w-[650px] h-[480px] relative mt-12 group">
+                  <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-primary/40 shadow-2xl bg-gradient-to-br from-card/95 to-primary/10 backdrop-blur-sm transition-all duration-500 group-hover:shadow-primary/30 group-hover:border-primary/60">
+                    {/* Glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
                     <img
                       src={selectedPreview}
                       alt="Uploaded bookshelf image"
-                      className="w-full h-full object-contain bg-black/5"
+                      className="w-full h-full object-contain bg-black/5 relative z-10"
                     />
+
+                    {/* Subtle overlay with processing info */}
+                    <div className="absolute bottom-4 left-4 right-4 z-20">
+                      <div className="bg-black/40 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="font-medium">AI Analysis Ready</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1036,52 +1163,97 @@ export function HomePage() {
         </div>
 
         {/* Start Discovery Process Button */}
-        {!showUploadCard && (
-          <div className="flex flex-col items-center justify-center mt-16 space-y-12">
-            <Button
-              size="lg"
-              className="gap-3 px-12 py-6 text-lg font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-              onClick={() => setShowUploadCard(true)}
-            >
-              <Sparkles className="h-6 w-6" />
-              Start Discovery Process
-            </Button>
+        <div className="flex flex-col items-center justify-center mt-16 space-y-12">
+          <Button
+            size="lg"
+            className="gap-3 px-12 py-6 text-lg font-semibold bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group"
+            onClick={handleStartDiscovery}
+          >
+            <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
+            Start Discovery Process
+          </Button>
+        </div>
 
+        {/* Main Content Area - Upload Card or Collection Grid (only show after start button pressed) */}
+        {showMainContent && (
+          <div ref={uploadCardRef} className="mt-20">
+            {enrichedBooks.length === 0 ? (
+              /* Upload Interface */
+              <UploadCard
+                dragOver={dragOver}
+                isUploading={isUploading}
+                onFileSelect={() => fileInputRef.current?.click()}
+                onStartCamera={startCamera}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
+                cameraButtonRef={cameraButtonRef}
+                showPreferencesMode={showPreferencesMode}
+                onPreferencesSubmit={handlePreferencesSubmit}
+              />
+            ) : (
+              /* AI-Enhanced Library Collection */
+              <div ref={collectionCardRef}>
+                <CollectionGrid
+                  enrichedBooks={enrichedBooks}
+                  modelUsed={modelUsed}
+                  isSaving={isSaving}
+                  isGeneratingRecommendations={isGeneratingRecommendations}
+                  onToggleBookSelection={toggleBookSelection}
+                  onSaveSelectedBooks={saveSelectedBooks}
+                  onGenerateRecommendations={generateRecommendations}
+                onScanAnother={() => {
+                    setEnrichedBooks([])
+                    setShowMainContent(false)
+                    setShowPreferencesMode(false)
+                    setShowAITesting(false)
+                    // Revoke URL before clearing state
+                    if (selectedPreview) {
+                      URL.revokeObjectURL(selectedPreview)
+                    }
+                    setSelectedPreview(null)
+                    setUploadProgress(null)
+                    setIsUploading(false)
+                    setDetectedObjects([])
+                    setModelUsed('')
+                  dispatchStep({ type: 'reset' })
+
+                    // Scroll to top of page
+                  startTransition(() => {
+                    window.scrollTo({
+                      top: 0,
+                      behavior: 'smooth'
+                    })
+                  })
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
 
-        {/* Main Upload Section - Futuristic AI Interface */}
-        {showUploadCard && !(enrichedBooks.length > 0) && (
-          <UploadCard
-            dragOver={dragOver}
-            isUploading={isUploading}
-            onFileSelect={() => fileInputRef.current?.click()}
-            onStartCamera={startCamera}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
-            cameraButtonRef={cameraButtonRef}
-          />
-        )}
+        {/* Enhanced Processing Steps (only show after start button pressed) */}
+        {showMainContent && isUploading && (
+          <div className="w-full max-w-4xl mx-auto mt-12">
+            <Card className="relative overflow-hidden transition-all duration-700 bg-gradient-to-br from-card/95 via-card to-primary/10 border-2 border-primary/50 shadow-2xl shadow-primary/25 backdrop-blur-sm">
+              {/* Enhanced background effects */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-400/5"></div>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-blue-400 to-purple-400"></div>
 
-        {/* Processing Steps */}
-        {isUploading && (
-          <div className="w-full mx-auto">
-            <Card className="relative overflow-hidden transition-all duration-700 bg-gradient-to-br from-card/90 via-card to-primary/10 border-2 border-primary shadow-2xl shadow-primary/30 backdrop-blur-sm">
-              <CardContent className="p-8 relative z-10">
+              <CardContent className="p-10 relative z-10">
                 <ProcessingSteps
                   stepState={stepState}
                   currentMessage={uploadProgress?.message}
                   progress={uploadProgress?.progress}
                 />
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
-        {/* Camera Capture Modal - Lazy Loaded */}
-        {showCamera && (
+        {/* Camera Capture Modal - Lazy Loaded (only show after start button pressed) */}
+        {showMainContent && showCamera && (
           <Suspense fallback={
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-card p-6 rounded-lg shadow-lg">
@@ -1107,70 +1279,46 @@ export function HomePage() {
         )}
 
 
-        {/* AI-Enhanced Library Collection */}
-        {enrichedBooks.length > 0 && (
-          <div ref={collectionCardRef}>
-            <CollectionGrid
-              enrichedBooks={enrichedBooks}
-              modelUsed={modelUsed}
-              isSaving={isSaving}
-              isGeneratingRecommendations={isGeneratingRecommendations}
-              onToggleBookSelection={toggleBookSelection}
-              onSaveSelectedBooks={saveSelectedBooks}
-              onGenerateRecommendations={generateRecommendations}
-              onScanAnother={() => {
-                  setEnrichedBooks([])
-                  // Revoke URL before clearing state
-                  if (selectedPreview) {
-                    URL.revokeObjectURL(selectedPreview)
-                  }
-                  setSelectedPreview(null)
-                  setUploadProgress(null)
-                  setIsUploading(false)
-                  setDetectedObjects([])
-                  setModelUsed('')
-                dispatchStep({ type: 'reset' })
 
-                  // Scroll to top of page
-                startTransition(() => {
-                  window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                  })
-                })
-                }}
-            />
+        {/* AI Testing Section - Enhanced Design (only show after start button pressed) */}
+        {showMainContent && (!showAITesting ? (
+        <div className="mt-24 w-full text-center relative">
+          {/* Background decoration */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
           </div>
-        )}
 
-        {/* AI Testing Section - Lazy Loaded */}
-        {!showAITesting ? (
-        <div className="mt-20 max-w-6xl mx-auto text-center">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-primary/30">
-                <Brain className="h-4 w-4 text-primary animate-pulse" />
-                <span className="text-sm font-semibold text-primary">AI Testing Suite</span>
+          <div className="space-y-10 relative z-10">
+            <div className="space-y-6 max-w-6xl mx-auto px-6">
+              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-indigo-500/20 border border-primary/30 shadow-lg backdrop-blur-sm">
+                <Brain className="h-5 w-5 text-primary animate-pulse" />
+                <span className="text-base font-semibold text-primary">AI Testing Suite</span>
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                Experience AI Vision Intelligence
-            </h2>
-              <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+
+              <div className="space-y-4">
+                <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-foreground via-primary to-blue-400 bg-clip-text text-transparent leading-tight">
+                  Experience AI Vision Intelligence
+                </h2>
+                <p className="text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed font-light">
                   No bookshelf ready? Test our models with sample datasets.
-                Each sample showcases different AI recognition capabilities.
-              </p>
+                  Each sample showcases different AI recognition capabilities and processing techniques.
+                </p>
+              </div>
             </div>
 
-                        <Button
+            <div className="max-w-4xl mx-auto px-6">
+              <Button
                 size="lg"
-                className="gap-3 px-8 py-4 text-lg font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                className="gap-3 px-10 py-5 text-lg font-semibold bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-600 hover:from-blue-600 hover:via-purple-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group"
                 onClick={() => setShowAITesting(true)}
               >
-                <Zap className="h-5 w-5" />
+                <Zap className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
                 Load AI Testing Samples
               </Button>
-                      </div>
             </div>
+          </div>
+        </div>
         ) : (
           <Suspense fallback={
             <div className="mt-20 max-w-6xl mx-auto text-center">
@@ -1182,20 +1330,25 @@ export function HomePage() {
           }>
             <AITestingSection onSampleSelect={handleSampleSelect} />
           </Suspense>
-        )}
+        ))}
 
-        {/* Hidden file inputs */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.heic,.heif"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) handleFileSelect(file)
-          }}
-        />
+        {/* Hidden file inputs (only show after start button pressed) */}
+        {showMainContent && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.heic,.heif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleFileSelect(file)
+            }}
+          />
+        )}
       </div>
+
+      {/* Enhanced Footer */}
+      <Footer />
     </div>
   )
 }

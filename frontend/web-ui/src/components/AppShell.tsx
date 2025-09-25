@@ -14,6 +14,10 @@ export function AppShell({ children }: AppShellProps) {
   // Pages that should hide navigation
   const hideNavigation = ['/onboarding'].includes(location.pathname)
 
+  // Pages that should use full-width layout (no container constraints)
+  const fullWidthPages = ['/'].includes(location.pathname)
+  const isFullWidth = fullWidthPages
+
   return (
     <div className="min-h-screen bg-background">
       <TopBar />
@@ -22,9 +26,17 @@ export function AppShell({ children }: AppShellProps) {
         'flex-1',
         !hideNavigation && 'pb-20 md:pb-0' // Add bottom padding for enhanced mobile nav
       )}>
-        <div className="container mx-auto px-4 py-6">
-          {children}
-        </div>
+        {isFullWidth ? (
+          // Full-width layout for homepage
+          <div className="w-full">
+            {children}
+          </div>
+        ) : (
+          // Container layout for other pages
+          <div className="container mx-auto px-4 py-6">
+            {children}
+          </div>
+        )}
       </main>
 
       {!hideNavigation && <Navigation />}
