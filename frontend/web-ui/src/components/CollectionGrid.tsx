@@ -49,17 +49,20 @@ export const CollectionGrid = memo<CollectionGridProps>(({
       <Card className="collection-card border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
         <CardContent className="p-4">
           <div className="space-y-4">
-            <div className="text-center space-y-3">
-              <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent mb-1">
-                Detected Books Collection
-              </h2>
-              <p className="text-muted-foreground">Click books to select for your library</p>
+            {/* Sticky Header */}
+            <div className="sticky top-16 z-30 bg-gradient-to-r from-card/95 via-card/90 to-primary/5 backdrop-blur-sm -mx-4 px-4 py-3 border-b border-primary/10 mb-4">
+              <div className="text-center space-y-2">
+                <h2 className="text-lg font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+                  Detected Books Collection
+                </h2>
+                <p className="text-sm text-muted-foreground">Click or swipe books to select for your library</p>
 
-              {/* Processing Insights */}
-              <div className="flex items-center justify-center gap-4 text-xs">
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-blue-600/10 border border-blue-500/20">
-                  <Brain className="h-3 w-3 text-blue-500" />
-                  <span className="text-blue-600 font-medium">{modelUsed || 'AI Model'}</span>
+                {/* Processing Insights */}
+                <div className="flex items-center justify-center gap-4 text-xs">
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-blue-600/10 border border-blue-500/20">
+                    <Brain className="h-3 w-3 text-blue-500" />
+                    <span className="text-blue-600 font-medium">{modelUsed || 'AI Model'}</span>
+                  </div>
                 </div>
               </div>
             </div>

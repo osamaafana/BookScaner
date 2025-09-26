@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Github, Twitter, Mail, BookOpen, Brain, Sparkles } from 'lucide-react'
+import { Github, Mail, BookOpen, Brain, Instagram, Linkedin } from 'lucide-react'
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
@@ -32,25 +32,11 @@ export function Footer() {
             </div>
 
             <p className="text-muted-foreground leading-relaxed max-w-md">
-              Advanced computer vision technology that automatically identifies, catalogs, and enriches your book collection
+              Advanced computer vision technology that automatically identifies, and enriches your book collection
               with intelligent metadata extraction and personalized recommendations.
             </p>
 
-            {/* Tech badges */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-primary">Neural Networks</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-blue-400/10 rounded-full border border-blue-400/20">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-300"></div>
-                <span className="text-sm font-medium text-blue-400">Computer Vision</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-purple-400/10 rounded-full border border-purple-400/20">
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-700"></div>
-                <span className="text-sm font-medium text-purple-400">Deep Learning</span>
-              </div>
-            </div>
+
           </div>
 
           {/* Quick Links */}
@@ -92,41 +78,39 @@ export function Footer() {
             </nav>
           </div>
 
-          {/* Support & Settings */}
+          {/* Contact */}
           <div className="space-y-6">
-            <h4 className="text-lg font-semibold text-foreground">Support</h4>
-            <nav className="space-y-3">
-              <Link
-                to="/settings"
-                className="block text-muted-foreground hover:text-primary transition-colors duration-200 group"
-              >
-                <span className="group-hover:translate-x-1 inline-block transition-transform duration-200">
-                  Settings
-                </span>
-              </Link>
-              <Link
-                to="/preferences"
-                className="block text-muted-foreground hover:text-primary transition-colors duration-200 group"
-              >
-                <span className="group-hover:translate-x-1 inline-block transition-transform duration-200">
-                  Preferences
-                </span>
-              </Link>
-              <a
-                href="mailto:support@bookscanner.ai"
-                className="block text-muted-foreground hover:text-primary transition-colors duration-200 group"
-              >
-                <span className="group-hover:translate-x-1 inline-block transition-transform duration-200">
-                  Contact Support
-                </span>
-              </a>
-              <div className="pt-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span>AI-Powered Support Available</span>
+            <h4 className="text-lg font-semibold text-foreground">Contact</h4>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-foreground">Osama Afana</div>
+                <div className="text-sm text-muted-foreground">Data Scientist</div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span>Work: o.afana@xocialive.com</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span>Personal: osamaafana4@gmail.com</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="font-medium">📞</span>
+                    <span>+962 781 612 941</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="font-medium">📞</span>
+                    <span>+90 555 189 0757</span>
+                  </div>
                 </div>
               </div>
-            </nav>
+
+
+            </div>
           </div>
         </div>
 
@@ -135,7 +119,7 @@ export function Footer() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <a
-                href="https://github.com/bookscanner"
+                href="https://github.com/osamaafana/BookScaner"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors duration-200 group"
@@ -144,16 +128,25 @@ export function Footer() {
                 <Github className="h-5 w-5 text-primary group-hover:scale-110 transition-transform duration-200" />
               </a>
               <a
-                href="https://twitter.com/bookscanner"
+                href="https://www.instagram.com/o._sl/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-pink-400/10 hover:bg-pink-400/20 transition-colors duration-200 group"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-5 w-5 text-pink-400 group-hover:scale-110 transition-transform duration-200" />
+              </a>
+              <a
+                href="https://www.linkedin.com/in/osama-afana/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-blue-400/10 hover:bg-blue-400/20 transition-colors duration-200 group"
-                aria-label="Twitter"
+                aria-label="LinkedIn"
               >
-                <Twitter className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform duration-200" />
+                <Linkedin className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform duration-200" />
               </a>
               <a
-                href="mailto:hello@bookscanner.ai"
+                href="osamaafana4@gmail.com"
                 className="p-2 rounded-lg bg-purple-400/10 hover:bg-purple-400/20 transition-colors duration-200 group"
                 aria-label="Email"
               >

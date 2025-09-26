@@ -102,12 +102,23 @@ class GoogleVisionAdapter:
             print(f"DEBUG: Total candidates for NVIDIA NIM: {len(candidates)}")
             print(f"DEBUG: First 5 candidates: {candidates[:5]}")
 
-            # Step 2: Send to NVIDIA NIM for structured parsing
+            # Step 2: Send to NVIDIA NIM for structured parsing (required for Google Vision + NVIDIA model)
             if candidates:
-                result = await self.nim_adapter.aggregate(candidates)
-                return result, {"gcv_units": 1, "nvidia_units": 1}
+                if not self.nim_adapter.api_key:
+                    raise RuntimeError(
+                        "NVIDIA NIM API key not configured for Google Vision + NVIDIA model"
+                    )
+
+                try:
+                    result = await self.nim_adapter.aggregate(candidates)
+                    return result, {"gcv_units": 1, "nvidia_units": 1}
+                except Exception as nim_error:
+                    print(f"DEBUG: NVIDIA NIM processing failed: {nim_error}")
+                    raise RuntimeError(
+                        f"NVIDIA NIM processing failed: {str(nim_error)}"
+                    )
             else:
-                raise RuntimeError("No text candidates found for NVIDIA NIM processing")
+                raise RuntimeError("No text candidates found for processing")
 
         except Exception as e:
             print(f"Google Vision processing failed: {e}")

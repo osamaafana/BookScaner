@@ -479,3 +479,213 @@ body {
   flex-grow: 1;
   min-width: 0;
 }
+
+/* ==========================================
+   Mobile Optimization - Touch & Safe Areas
+   ========================================== */
+
+/* Ensure minimum touch target size (44px) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Touch manipulation for better mobile performance */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Safe area insets for devices with notches */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-inset-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-inset-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Mobile-first responsive utilities */
+@media (max-width: 768px) {
+  /* Hide desktop elements on mobile */
+  .hidden-mobile {
+    display: none !important;
+  }
+
+  /* Show mobile elements */
+  .show-mobile {
+    display: block !important;
+  }
+
+  /* Mobile-specific button sizing */
+  .mobile-button {
+    min-height: 48px;
+    padding: 12px 24px;
+    font-size: 16px;
+  }
+
+  /* Mobile-friendly modal positioning */
+  .mobile-modal {
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+  }
+
+  /* Mobile-friendly bottom sheets */
+  .mobile-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 20px 20px 0 0;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: hsl(var(--card));
+  }
+
+  /* Mobile swipe indicators */
+  .mobile-swipe-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Mobile-friendly grid layouts */
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  /* Mobile scroll hints */
+  .mobile-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .mobile-scroll::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .mobile-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .mobile-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 2px;
+  }
+
+  .mobile-scroll::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+/* Thumb-friendly navigation */
+@media (max-width: 768px) {
+  .thumb-navigation {
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 0);
+    left: 0;
+    right: 0;
+    background: hsl(var(--card) / 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid hsl(var(--border) / 0.5);
+    padding: 12px 24px;
+    z-index: 50;
+  }
+
+  .thumb-nav-item {
+    min-width: 60px;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px;
+    border-radius: 16px;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .thumb-nav-item:hover {
+    transform: scale(1.05);
+  }
+
+  .thumb-nav-item:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Mobile gesture support */
+.gesture-area {
+  touch-action: pan-x pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-optimized animations */
+@media (max-width: 768px) {
+  .animate-mobile {
+    animation-duration: 0.2s;
+    animation-fill-mode: both;
+  }
+
+  .slide-up-mobile {
+    animation-name: slide-up-mobile;
+  }
+
+  .slide-down-mobile {
+    animation-name: slide-down-mobile;
+  }
+}
+
+@keyframes slide-up-mobile {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down-mobile {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* Mobile-specific focus styles */
+@media (max-width: 768px) {
+  .focus-mobile:focus {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}

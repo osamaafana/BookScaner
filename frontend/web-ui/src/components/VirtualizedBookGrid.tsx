@@ -1,7 +1,6 @@
-import React, { memo, useMemo, useState, useEffect } from 'react'
+import React, { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { CardContent } from './ui/Card'
-import { Badge } from './ui/Badge'
-import { CheckCircle2, Plus, Sparkles, BookOpen } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface EnrichedBook {
@@ -24,7 +23,7 @@ interface VirtualizedBookGridProps {
   containerHeight: number
 }
 
-// Individual book item component
+// Individual book item component with swipe support
 const BookItem = memo(({
   book,
   onBookSelect
@@ -32,20 +31,90 @@ const BookItem = memo(({
   book: EnrichedBook
   onBookSelect: (bookId: string) => void
 }) => {
+  const [swipeOffset, setSwipeOffset] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const touchStartX = useRef<number>(0)
+  const touchStartY = useRef<number>(0)
+  const itemRef = useRef<HTMLButtonElement>(null)
+
+  const SWIPE_THRESHOLD = 50 // Minimum swipe distance to trigger action
+  const MAX_SWIPE_OFFSET = 100 // Maximum swipe distance for visual feedback
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    touchStartX.current = touch.clientX
+    touchStartY.current = touch.clientY
+    setIsDragging(true)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return
+
+    const touch = e.touches[0]
+    const deltaX = touch.clientX - touchStartX.current
+    const deltaY = touch.clientY - touchStartY.current
+
+    // Only allow horizontal swipes (ignore vertical scrolling)
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Prevent vertical scrolling when swiping horizontally
+      e.preventDefault()
+
+      // Limit the swipe offset for visual feedback
+      const limitedOffset = Math.max(-MAX_SWIPE_OFFSET, Math.min(MAX_SWIPE_OFFSET, deltaX))
+      setSwipeOffset(limitedOffset)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return
+
+    // Check if swipe was significant enough to trigger selection toggle
+    if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
+      onBookSelect(book.id)
+    }
+
+    // Reset swipe offset
+    setSwipeOffset(0)
+    setIsDragging(false)
+  }
+
+  const handleClick = () => {
+    // Only trigger click if it wasn't a swipe gesture
+    if (Math.abs(swipeOffset) <= SWIPE_THRESHOLD) {
+      onBookSelect(book.id)
+    }
+  }
+
+  const getSwipeIndicator = () => {
+    // Visual indicators removed as requested
+    return null
+  }
+
   return (
     <button
+      ref={itemRef}
       className={cn(
-        "group relative overflow-hidden transition-all duration-300 hover:scale-105 h-full w-full text-left",
+        "group relative overflow-hidden transition-all duration-300 hover:scale-105 h-full w-full text-left touch-manipulation",
         "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg",
+        "transform-gpu will-change-transform",
         book.selected
           ? "border-green-500 bg-gradient-to-br from-green-500/20 to-blue-500/20 shadow-lg shadow-green-500/25"
           : "border-border/50 hover:border-primary/50 bg-gradient-to-br from-card/80 to-muted/20"
       )}
-      onClick={() => onBookSelect(book.id)}
+      style={{
+        transform: `translateX(${swipeOffset}px)`,
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={handleClick}
       aria-pressed={book.selected}
-      aria-label={`${book.selected ? 'Deselect' : 'Select'} ${book.title}${book.author ? ` by ${book.author}` : ''}`}
+      aria-label={`${book.selected ? 'Deselect' : 'Select'} ${book.title}${book.author ? ` by ${book.author}` : ''}. Swipe to quickly toggle selection.`}
     >
       <CardContent className="p-2 space-y-2 h-full flex flex-col">
+        {/* Swipe Indicator */}
+        {getSwipeIndicator()}
+
         {/* Book Cover */}
         <div className="aspect-[3/4] relative rounded-lg overflow-hidden bg-muted/30 shadow-md flex-shrink-0">
           <img
@@ -62,27 +131,6 @@ const BookItem = memo(({
             }}
           />
 
-          {/* Selection Indicator */}
-          <div className="absolute top-2 right-2">
-            {book.selected ? (
-              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-md">
-                <CheckCircle2 className="h-4 w-4 text-white" />
-              </div>
-            ) : (
-              <div className="w-6 h-6 border-2 border-white/80 rounded-full flex items-center justify-center backdrop-blur-sm bg-black/20">
-                <Plus className="h-4 w-4 text-white" />
-              </div>
-            )}
-          </div>
-
-          {/* AI Enhancement Badge */}
-          <Badge
-            variant="secondary"
-            className="absolute bottom-2 left-2 text-xs bg-black/70 text-white border-0 backdrop-blur-sm px-1.5 py-0.5"
-          >
-            <Sparkles className="h-2.5 w-2.5 mr-1" />
-            AI
-          </Badge>
         </div>
 
         {/* Book Info */}
@@ -111,20 +159,6 @@ const BookItem = memo(({
           {book.publisher && (
             <div className="text-xs text-muted-foreground italic">
               {book.publisher}
-            </div>
-          )}
-          {book.subjects && book.subjects.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {book.subjects.slice(0, 1).map((subject, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs px-1.5 py-0.5">
-                  {subject}
-                </Badge>
-              ))}
-              {book.subjects.length > 1 && (
-                <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                  +{book.subjects.length - 1}
-                </Badge>
-              )}
             </div>
           )}
         </div>

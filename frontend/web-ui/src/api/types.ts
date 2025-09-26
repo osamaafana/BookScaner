@@ -93,6 +93,7 @@ export interface BookAnalysisRequest {
 export interface BookScore {
   title: string
   author?: string
+  cover_url?: string
   score: number
   recommendation: string
   match_quality: string

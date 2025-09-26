@@ -6,9 +6,10 @@ import { cn } from '../lib/utils'
 
 interface AppShellProps {
   children: React.ReactNode
+  onPreferencesClick?: () => void
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, onPreferencesClick }: AppShellProps) {
   const location = useLocation()
 
   // Pages that should hide navigation
@@ -20,7 +21,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <TopBar />
+      <TopBar onPreferencesClick={onPreferencesClick} />
 
       <main className={cn(
         'flex-1',

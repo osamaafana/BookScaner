@@ -68,7 +68,7 @@ export function RecommendationsPage() {
               title: s.title,
               author: s.author,
               short_reason: s.recommendation,
-              cover_url: undefined, // Not available in book_scores
+              cover_url: s.cover_url,
               isbn: undefined, // Not available in book_scores
               publisher: undefined, // Not available in book_scores
               year: undefined, // Not available in book_scores
@@ -325,25 +325,21 @@ export function RecommendationsPage() {
 
                               <div className="flex-shrink-0 flex flex-col items-end justify-between space-y-4">
                                 <div className="text-right space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <Brain className="h-4 w-4 text-primary" />
-                                    <span className="text-sm font-medium text-muted-foreground">AI Score</span>
-                                  </div>
+
                                   <div className="space-y-1">
                                     <div className={`text-2xl font-bold ${getScoreColor(rec.score)}`}>
                                       {rec.score != null ? rec.score.toFixed(1) : 'N/A'}/10
                                     </div>
-                                    {rec.match_quality && (
-                                      <Badge variant="outline" className={`text-xs ${getMatchQualityColor(rec.match_quality)}`}>
-                                        {rec.match_quality}
-                                      </Badge>
-                                    )}
-                                    {rec.is_perfect_match && (
+                                    {rec.is_perfect_match ? (
                                       <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600 border-green-500/30">
                                         <Star className="h-3 w-3 mr-1 fill-current" />
                                         Perfect Match
                                       </Badge>
-                                    )}
+                                    ) : rec.match_quality ? (
+                                      <Badge variant="outline" className={`text-xs ${getMatchQualityColor(rec.match_quality)}`}>
+                                        {rec.match_quality}
+                                      </Badge>
+                                    ) : null}
                                   </div>
                                 </div>
 

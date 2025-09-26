@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useReducer, startTransition, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Zap, Brain } from 'lucide-react'
+import { Sparkles, Zap, Brain, Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
 import { useStorage } from '../contexts/StorageContext'
@@ -15,6 +15,7 @@ import { getModelLabel, type ScanResult } from '../api/types'
 import { useRecommendations } from '../contexts/RecommendationsContext'
 import { devLog, devWarn, devError } from '../lib/devLog'
 import { Footer } from '../components/Footer'
+
 
 // Lazy-load camera modal to reduce initial bundle size
 const CameraModal = lazy(() => import('../components/CameraModal').then(module => ({ default: module.CameraModal })))
@@ -45,12 +46,12 @@ interface EnrichedBook {
 }
 
 // Step state management with reducer
-type StepKey = 'optimize' | 'upload' | 'analyze' | 'extract' | 'enrich'
+type StepKey = 'optimize' | 'upload' | 'enrich'
 type StepState = Record<StepKey, 'pending' | 'active' | 'done'>
 
 function stepReducer(state: StepState, action: { type: 'set'; key: StepKey; val: StepState[StepKey] } | { type: 'reset' }): StepState {
   if (action.type === 'reset') {
-    return { optimize: 'pending', upload: 'pending', analyze: 'pending', extract: 'pending', enrich: 'pending' }
+    return { optimize: 'pending', upload: 'pending', enrich: 'pending' }
   }
   return { ...state, [action.key]: action.val }
 }
@@ -66,7 +67,7 @@ export function HomePage() {
   const [modelUsed, setModelUsed] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
-  const { saveScanResult, preferences, addBook, updatePreferences } = useStorage()
+  const { saveScanResult, preferences, addBook, updatePreferences, isLoading } = useStorage()
   const toast = useToast()
   const { setRecommendationsData } = useRecommendations()
 
@@ -93,8 +94,6 @@ export function HomePage() {
   const [stepState, dispatchStep] = useReducer(stepReducer, {
     optimize: 'pending',
     upload: 'pending',
-    analyze: 'pending',
-    extract: 'pending',
     enrich: 'pending'
   })
 
@@ -135,6 +134,7 @@ export function HomePage() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [cameraStream])
+
 
   const simulateDetection = useCallback(() => {
     // Simulate object detection for visual feedback
@@ -181,6 +181,12 @@ export function HomePage() {
 
   // Handle start discovery process - check preferences first
   const handleStartDiscovery = useCallback(() => {
+    // Don't proceed if database is still loading
+    if (isLoading) {
+      toast.info('Loading your preferences...')
+      return
+    }
+
     // Show main content when start button is pressed
     setShowMainContent(true)
 
@@ -220,7 +226,7 @@ export function HomePage() {
       // Scroll to upload card if preferences are already set
       scrollToUploadCard()
     }
-  }, [preferences])
+  }, [preferences, isLoading, toast])
 
   // Handle preferences submission
   const handlePreferencesSubmit = useCallback(async (genres: string[], languages: string[]) => {
@@ -805,34 +811,9 @@ export function HomePage() {
       }) as ScanResult
 
       dispatchStep({ type: 'set', key: 'upload', val: 'done' })
-      dispatchStep({ type: 'set', key: 'analyze', val: 'active' })
-
-      // Step 3: Vision AI Analysis
-      setUploadProgress({
-        stage: 'processing',
-        progress: 0,
-        message: 'Computer vision analyzing scene...'
-      })
-
-      for (let i = 0; i <= 100; i += 20) {
-        setUploadProgress(prev => prev ? { ...prev, progress: i } : null)
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      dispatchStep({ type: 'set', key: 'analyze', val: 'done' })
-      dispatchStep({ type: 'set', key: 'extract', val: 'active' })
-
-      // Step 4: Text Extraction
-      setUploadProgress(prev => prev ? { ...prev, message: 'Extracting text from spines...' } : null)
-      for (let i = 0; i <= 100; i += 25) {
-        setUploadProgress(prev => prev ? { ...prev, progress: i } : null)
-        await new Promise(resolve => setTimeout(resolve, 180))
-      }
-
-      dispatchStep({ type: 'set', key: 'extract', val: 'done' })
       dispatchStep({ type: 'set', key: 'enrich', val: 'active' })
 
-      // Step 5: Enrichment
+      // Step 3: Enrichment
       setUploadProgress(prev => prev ? { ...prev, message: 'Matching with book database...' } : null)
       for (let i = 0; i <= 100; i += 33) {
         setUploadProgress(prev => prev ? { ...prev, progress: i } : null)
@@ -1132,31 +1113,6 @@ export function HomePage() {
                 </div>
               </div>
 
-              {/* Enhanced uploaded image preview */}
-              {selectedPreview && (
-                <div className="mx-auto w-[650px] h-[480px] relative mt-12 group">
-                  <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-primary/40 shadow-2xl bg-gradient-to-br from-card/95 to-primary/10 backdrop-blur-sm transition-all duration-500 group-hover:shadow-primary/30 group-hover:border-primary/60">
-                    {/* Glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                    <img
-                      src={selectedPreview}
-                      alt="Uploaded bookshelf image"
-                      className="w-full h-full object-contain bg-black/5 relative z-10"
-                    />
-
-                    {/* Subtle overlay with processing info */}
-                    <div className="absolute bottom-4 left-4 right-4 z-20">
-                      <div className="bg-black/40 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                          <span className="font-medium">AI Analysis Ready</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1166,12 +1122,23 @@ export function HomePage() {
         <div className="flex flex-col items-center justify-center mt-16 space-y-12">
           <Button
             size="lg"
-            className="gap-3 px-12 py-6 text-lg font-semibold bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group"
+            disabled={isLoading}
+            className="gap-3 px-12 py-6 text-lg font-semibold bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleStartDiscovery}
           >
-            <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
-            Start Discovery Process
+            {isLoading ? (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin" />
+                Loading Preferences...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
+                Start Discovery Process
+              </>
+            )}
           </Button>
+
         </div>
 
         {/* Main Content Area - Upload Card or Collection Grid (only show after start button pressed) */}
@@ -1246,6 +1213,7 @@ export function HomePage() {
                   stepState={stepState}
                   currentMessage={uploadProgress?.message}
                   progress={uploadProgress?.progress}
+                  imagePreview={selectedPreview}
                 />
               </CardContent>
             </Card>

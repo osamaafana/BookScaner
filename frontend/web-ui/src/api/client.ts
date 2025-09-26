@@ -437,7 +437,7 @@ export const api = {
       recommendations: result.book_scores.map(score => ({
         title: score.title,
         author: score.author,
-        cover_url: undefined, // We'll need to get this from metadata
+        cover_url: score.cover_url,
         year: undefined,
         publisher: undefined,
         subjects: [],

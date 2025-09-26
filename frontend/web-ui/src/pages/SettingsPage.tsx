@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, Trash2, Download, Upload, Brain, Cpu, Eye, Zap, Sparkles, Settings as SettingsIcon, Database, Shield, RefreshCw, CheckCircle2, AlertTriangle, Info, Loader2 } from 'lucide-react'
+import { Trash2, Download, Upload, Cpu, Eye, Zap, Database, Shield, CheckCircle2, AlertTriangle, Loader2, Brain } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -7,34 +7,9 @@ import { useStorage } from '../contexts/StorageContext'
 import { useToast } from '../contexts/ToastContext'
 import { cn } from '../lib/utils'
 
-const AVAILABLE_GENRES = [
-  'Science Fiction', 'Fantasy', 'Mystery', 'Romance', 'Thriller',
-  'Historical Fiction', 'Literary Fiction', 'Young Adult', 'Horror',
-  'Biography', 'History', 'Philosophy', 'Psychology', 'Science',
-  'Technology', 'Business', 'Self Help', 'Health', 'Travel',
-  'Art', 'Cooking', 'Poetry', 'Drama', 'Comedy'
-]
-
-const AVAILABLE_LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'it', name: 'Italian' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'hi', name: 'Hindi' }
-]
 
 export function SettingsPage() {
-  const { preferences, updatePreferences, books, syncWithBackend, clearAllLocalData } = useStorage()
-  const [localPreferences, setLocalPreferences] = useState(preferences)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const { preferences, updatePreferences, books, clearAllLocalData } = useStorage()
   const [isResetting, setIsResetting] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [systemStatus, setSystemStatus] = useState({
@@ -61,49 +36,7 @@ export function SettingsPage() {
     return () => clearInterval(interval)
   }, [books.length])
 
-  const toggleGenre = (genre: string) => {
-    setLocalPreferences(prev => ({
-      ...prev,
-      genres: prev.genres.includes(genre)
-        ? prev.genres.filter(g => g !== genre)
-        : [...prev.genres, genre]
-    }))
-  }
 
-  const toggleLanguage = (langCode: string) => {
-    setLocalPreferences(prev => ({
-      ...prev,
-      languages: prev.languages.includes(langCode)
-        ? prev.languages.filter(l => l !== langCode)
-        : [...prev.languages, langCode]
-    }))
-  }
-
-  const savePreferences = async () => {
-    setIsSaving(true)
-    try {
-      await updatePreferences(localPreferences)
-      toast.success('Preferences saved')
-    } catch (error) {
-      console.error('Failed to save preferences:', error)
-      toast.error('Failed to save preferences')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const syncData = async () => {
-    setIsSyncing(true)
-    try {
-      await syncWithBackend()
-      toast.success('Data synced successfully')
-    } catch (error) {
-      console.error('Sync failed:', error)
-      toast.error('Sync failed. Please try again')
-    } finally {
-      setIsSyncing(false)
-    }
-  }
 
   const exportData = () => {
     const data = {
@@ -137,7 +70,6 @@ export function SettingsPage() {
 
         if (data.preferences) {
           await updatePreferences(data.preferences)
-          setLocalPreferences(data.preferences)
         }
 
         if (data.books && Array.isArray(data.books)) {
@@ -157,8 +89,8 @@ export function SettingsPage() {
   const handleClearAllData = async () => {
     setIsResetting(true)
     try {
-      // Call the flush endpoint to clear database and cache
-      const response = await fetch('http://localhost:8000/v1/admin/flush-db', {
+      // Call the device-specific flush endpoint to clear only this device's data
+      const response = await fetch('/api/admin/flush-device', {
         method: 'POST',
         headers: {
           'admin_token': 'jVJukv2uoBqD7IzscJxpoophMmH9Hj',
@@ -178,21 +110,19 @@ export function SettingsPage() {
       // Clear localStorage and reset preferences
       localStorage.clear()
       setShowClearConfirm(false)
-      setLocalPreferences({ genres: [], languages: [] })
 
-      toast.success(`your data has been deleted successfully! Cleared ${result.tables_cleared} database tables, cache, and all local data.`)
+      toast.success(`Your device data has been deleted successfully! Cleared ${result.tables_cleared} database tables for your device.`)
     } catch (error) {
-      console.error('Failed to reset neural network:', error)
-      toast.error('Failed to reset neural network. Please try again.')
+      console.error('Failed to reset your data:', error)
+      toast.error('Failed to reset your data. Please try again.')
     } finally {
       setIsResetting(false)
     }
   }
 
-  const hasChanges = JSON.stringify(localPreferences) !== JSON.stringify(preferences)
 
   return (
-    <div className="min-h-screen" aria-busy={isSaving || isSyncing}>
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Futuristic AI Header */}
         <div className="text-center space-y-8 mb-16 relative">
@@ -203,22 +133,16 @@ export function SettingsPage() {
           </div>
 
           <div className="space-y-6 relative">
-            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-primary/20 text-purple-600 text-sm font-semibold border border-purple-500/30 backdrop-blur-sm">
-              <SettingsIcon className="h-4 w-4 animate-pulse" />
-              AI Configuration Center
-            </div>
+
 
             <h1 className="text-4xl md:text-6xl font-black text-foreground leading-[0.9] tracking-tight">
-              <span className="block">Neural</span>
-              <span className="block bg-gradient-to-r from-purple-500 via-blue-400 to-primary bg-clip-text text-transparent animate-gradient">
-                Configuration
+              <span className="block relative">
+                Settings
+                <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0 rounded-full"></div>
               </span>
+
             </h1>
 
-            <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Configure your AI-powered reading experience with advanced neural network preferences
-              and system optimization settings.
-        </p>
       </div>
 
           {/* System Status */}
@@ -245,168 +169,15 @@ export function SettingsPage() {
             <div className="w-px h-8 bg-gradient-to-b from-transparent via-border to-transparent"></div>
             <div className="text-center group">
               <div className="text-2xl font-bold text-foreground group-hover:scale-110 transition-transform">
-                {localPreferences.genres.length}
+                {preferences.genres.length}
               </div>
               <div className="text-sm text-muted-foreground">Genres</div>
             </div>
           </div>
         </div>
 
-        {/* AI Preference Configuration */}
+        {/* System Management */}
         <div className="max-w-6xl mx-auto space-y-8">
-          {/* Genre Preferences */}
-          <Card className="border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
-            <CardContent className="p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
-                  <Brain className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                    Neural Genre Preferences
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Train the AI to understand your reading patterns and preferences
-                  </p>
-                </div>
-                <Badge variant="outline" className="ml-auto gap-1 text-xs border-purple-500/40">
-                  <Sparkles className="h-3 w-3" />
-                  LLaMA AI Training
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {AVAILABLE_GENRES.map(genre => {
-                  const active = localPreferences.genres.includes(genre)
-                  return (
-                    <Button
-                      key={genre}
-                      variant={active ? "primary" : "outline"}
-                      size="sm"
-                      onClick={() => toggleGenre(genre)}
-                      className={cn(
-                        "relative transition-all duration-300 group",
-                        active
-                          ? "bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-500/90 hover:to-blue-600/90 text-white border-0"
-                          : "hover:bg-primary/10 hover:border-primary/50"
-                      )}
-                    >
-                      {active && (
-                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      )}
-                      <span className="text-xs font-medium">{genre}</span>
-                    </Button>
-                  )
-                })}
-      </div>
-
-              <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-primary/10 to-blue-500/10 border border-primary/20">
-                <div className="flex items-center gap-2 text-sm text-foreground">
-                  <Info className="h-4 w-4 text-primary" />
-                  <span>
-                    <strong>{localPreferences.genres.length}</strong> genres selected.
-                    More preferences = better AI recommendations.
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Language Preferences */}
-          <Card className="border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
-            <CardContent className="p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                  <Eye className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                    Multi-Language Vision
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Configure AI vision processing for different languages and scripts
-                  </p>
-                </div>
-                <Badge variant="outline" className="ml-auto gap-1 text-xs border-blue-500/40">
-                  <Eye className="h-3 w-3" />
-                  OCR Processing
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {AVAILABLE_LANGUAGES.map(lang => {
-                  const active = localPreferences.languages.includes(lang.code)
-                  return (
-                    <Button
-              key={lang.code}
-                      variant={active ? "primary" : "outline"}
-                      size="sm"
-              onClick={() => toggleLanguage(lang.code)}
-                      className={cn(
-                        "relative transition-all duration-300 group",
-                        active
-                          ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-500/90 hover:to-purple-600/90 text-white border-0"
-                          : "hover:bg-primary/10 hover:border-primary/50"
-                      )}
-                    >
-                      {active && (
-                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      )}
-                      <span className="text-xs font-medium">{lang.name}</span>
-                    </Button>
-                  )
-                })}
-            </div>
-
-              <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
-                <div className="flex items-center gap-2 text-sm text-foreground">
-                  <Info className="h-4 w-4 text-blue-500" />
-                  <span>
-                    <strong>{localPreferences.languages.length}</strong> languages configured.
-                    AI will process text in these languages with higher accuracy.
-                  </span>
-        </div>
-      </div>
-            </CardContent>
-          </Card>
-
-          {/* Save Changes */}
-      {hasChanges && (
-            <Card className="border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-yellow-500/10">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 flex items-center justify-center">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-amber-900 dark:text-amber-100">Unsaved Configuration Changes</h3>
-                    <p className="text-sm text-amber-700 dark:text-amber-200">
-                      Your AI preferences have been modified. Save to apply changes to the neural network.
-                    </p>
-                  </div>
-                  <Button
-            onClick={savePreferences}
-            disabled={isSaving}
-                    className="gap-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-500/90 hover:to-yellow-600/90"
-          >
-            {isSaving ? (
-              <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                        <Save className="h-4 w-4" />
-                        Save Configuration
-              </>
-            )}
-                  </Button>
-        </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* System Management */}
           <Card className="border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
             <CardContent className="p-8">
               <div className="flex items-center gap-4 mb-6">
@@ -415,52 +186,16 @@ export function SettingsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                    Neural Data Management
+                    Data Management
                   </h2>
                   <p className="text-muted-foreground">
-                    Manage your AI training data, sync with cloud, and backup your neural preferences
+                    Manage your AI training data, and backup your personal preferences
                   </p>
                 </div>
-                <Badge variant="outline" className="ml-auto gap-1 text-xs border-green-500/40">
-                  <Database className="h-3 w-3" />
-                  Cloud Sync
-                </Badge>
+
               </div>
 
               <div className="space-y-4">
-                {/* Library Sync */}
-                <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-card/80 to-muted/20 border border-border/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                      <RefreshCw className="h-5 w-5 text-primary" />
-                    </div>
-            <div>
-                      <h3 className="font-semibold text-foreground">AI Library Sync</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {books.length} books • Last sync: {systemStatus.lastSync ? systemStatus.lastSync.toLocaleTimeString() : 'Never'}
-                      </p>
-                    </div>
-            </div>
-                  <Button
-                    variant="outline"
-              onClick={syncData}
-              disabled={isSyncing}
-                    className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
-            >
-              {isSyncing ? (
-                <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                  Syncing...
-                </>
-              ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4" />
-                        Sync Neural Data
-                      </>
-              )}
-                  </Button>
-          </div>
-
                 {/* Backup & Restore */}
                 <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-card/80 to-muted/20 border border-border/50">
                   <div className="flex items-center gap-4">
@@ -468,7 +203,7 @@ export function SettingsPage() {
                       <Shield className="h-5 w-5 text-primary" />
                     </div>
             <div>
-                      <h3 className="font-semibold text-foreground">Neural Backup & Restore</h3>
+                      <h3 className="font-semibold text-foreground">Data Backup & Restore</h3>
                       <p className="text-sm text-muted-foreground">
                         Export or import your AI training data and preferences
                       </p>
@@ -508,9 +243,9 @@ export function SettingsPage() {
                       <Trash2 className="h-5 w-5 text-red-500" />
                     </div>
             <div>
-                      <h3 className="font-semibold text-red-900 dark:text-red-100">Reset Neural Network</h3>
+                      <h3 className="font-semibold text-red-900 dark:text-red-100">Reset Your Data</h3>
                       <p className="text-sm text-red-700 dark:text-red-200">
-                        Clear all AI training data, books, and preferences
+                        Clear all AI training data, books, and preferences for this device
                       </p>
                     </div>
             </div>
@@ -537,6 +272,89 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* AI Model Selection */}
+          <Card className="border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
+                  <Brain className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+                    AI Vision Model
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Choose your preferred AI vision processing model for book scanning
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-6 rounded-xl bg-gradient-to-r from-card/80 to-muted/20 border border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-foreground">Vision Processing Model</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Select the AI model used for analyzing book spines and extracting metadata
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="flex items-center space-x-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 cursor-pointer transition-colors">
+                        <input
+                          type="radio"
+                          name="aiModel"
+                          value="groq"
+                          checked={preferences.groqEnabled}
+                          onChange={async (e) => {
+                            try {
+                              await updatePreferences({ groqEnabled: e.target.value === 'groq' })
+                              toast.success(`AI Model switched to Groq Vision`)
+                            } catch {
+                              toast.error('Failed to update AI model preference')
+                            }
+                          }}
+                          className="w-4 h-4 text-primary bg-card border-border focus:ring-primary"
+                        />
+                        <div className="flex items-center gap-3 flex-1">
+                          <Zap className="h-5 w-5 text-primary" />
+                          <div>
+                            <div className="font-medium text-foreground">Groq Vision</div>
+                            <div className="text-sm text-muted-foreground">Faster, more accurate</div>
+                          </div>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center space-x-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 cursor-pointer transition-colors">
+                        <input
+                          type="radio"
+                          name="aiModel"
+                          value="google"
+                          checked={!preferences.groqEnabled}
+                          onChange={async (e) => {
+                            try {
+                              await updatePreferences({ groqEnabled: e.target.value === 'groq' })
+                              toast.success(`AI Model switched to Google Vision + NVIDIA`)
+                            } catch {
+                              toast.error('Failed to update AI model preference')
+                            }
+                          }}
+                          className="w-4 h-4 text-primary bg-card border-border focus:ring-primary"
+                        />
+                        <div className="flex items-center gap-3 flex-1">
+                          <Eye className="h-5 w-5 text-primary" />
+                          <div>
+                            <div className="font-medium text-foreground">Google Vision + NVIDIA</div>
+                            <div className="text-sm text-muted-foreground">Slower, less accurate</div>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* System Information */}
           <Card className="border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
             <CardContent className="p-8">
@@ -546,7 +364,7 @@ export function SettingsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                    Neural System Information
+                    System Information
                   </h2>
                   <p className="text-muted-foreground">
                     Advanced AI-powered book scanning and recommendation engine
@@ -565,11 +383,11 @@ export function SettingsPage() {
                     <div className="space-y-2 text-sm text-muted-foreground">
                       <div className="flex justify-between">
                         <span>Vision Model:</span>
-                        <span className="text-foreground font-medium">LLaMA 4 Scout</span>
+                        <span className="text-foreground font-medium">LLaMA 4 Scout using Groq</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Recommendations:</span>
-                        <span className="text-foreground font-medium">LLaMA 3.1</span>
+                        <span className="text-foreground font-medium">LLaMA 3.1 using Groq + LLaMA 3.1 70b using NVIDIA</span>
                       </div>
                       <div className="flex justify-between">
                         <span>OCR Processing:</span>
@@ -589,10 +407,7 @@ export function SettingsPage() {
                         <span>Processing Speed:</span>
                         <span className="text-foreground font-medium">~2.3s avg</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Accuracy Rate:</span>
-                        <span className="text-foreground font-medium">94.2%</span>
-                      </div>
+
           </div>
         </div>
       </div>
@@ -627,10 +442,7 @@ export function SettingsPage() {
                         <CheckCircle2 className="h-3 w-3 text-green-500" />
                         <span>Smart Recommendations</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        <span>Multi-language OCR</span>
-                      </div>
+
                     </div>
                   </div>
                 </div>
@@ -657,10 +469,10 @@ export function SettingsPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="text-2xl font-bold text-foreground">Reset Neural Network?</h3>
+                    <h3 className="text-2xl font-bold text-foreground">Reset Your Data?</h3>
                     <p className="text-muted-foreground leading-relaxed">
-                      This will permanently delete all AI training data, books, preferences, and scan results.
-                      The neural network will be reset to its initial state.
+                      This will permanently delete all AI training data, books, preferences, and scan results for this device.
+                      Your data will be reset to its initial state.
                     </p>
                   </div>
 
@@ -692,7 +504,7 @@ export function SettingsPage() {
                       ) : (
                         <>
                           <Trash2 className="h-4 w-4" />
-                          Reset AI
+                          Reset All
                         </>
                       )}
                     </Button>

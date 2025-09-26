@@ -106,6 +106,28 @@ app.post("/api/scan", upload.single("image"), async (req, res) => {
   }
 });
 
+// Proxy admin endpoints with special handling for admin token
+app.use("/api/admin", createProxyMiddleware({
+  target: BACKEND_URL,
+  changeOrigin: true,
+  selfHandleResponse: false,
+  on: {
+    proxyReq: (proxyReq: any, req: any) => {
+      // pass through device id
+      const id = req.deviceId || "";
+      proxyReq.setHeader("X-Device-Id", id);
+      // ensure JSON bodies are forwarded if present
+      if (req.body && typeof req.body === "object") {
+        const body = JSON.stringify(req.body);
+        proxyReq.setHeader("content-type", "application/json");
+        proxyReq.setHeader("content-length", Buffer.byteLength(body));
+        proxyReq.write(body);
+        proxyReq.end();
+      }
+    }
+  }
+}));
+
 // Proxy all other /api/* to FastAPI /v1/*
 app.use(
   "/api",
