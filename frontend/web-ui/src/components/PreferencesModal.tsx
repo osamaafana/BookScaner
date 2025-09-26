@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Brain, Eye, Sparkles, Info, Settings } from 'lucide-react'
+import { Brain, Eye, Settings } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
-import { Badge } from './ui/Badge'
 import { useToast } from '../contexts/ToastContext'
 import { cn } from '../lib/utils'
 
@@ -32,8 +31,8 @@ const AVAILABLE_LANGUAGES = [
 interface PreferencesModalProps {
   isOpen: boolean
   onClose: () => void
-  preferences: any
-  updatePreferences: (prefs: any) => Promise<void>
+  preferences: { genres: string[]; languages: string[] }
+  updatePreferences: (prefs: { genres: string[]; languages: string[] }) => Promise<void>
 }
 
 export function PreferencesModal({ isOpen, onClose, preferences, updatePreferences }: PreferencesModalProps) {
@@ -42,7 +41,7 @@ export function PreferencesModal({ isOpen, onClose, preferences, updatePreferenc
   const toast = useToast()
 
   const toggleGenre = (genre: string) => {
-    setLocalPreferences((prev: any) => ({
+    setLocalPreferences((prev) => ({
       ...prev,
       genres: prev.genres.includes(genre)
         ? prev.genres.filter((g: string) => g !== genre)
@@ -51,7 +50,7 @@ export function PreferencesModal({ isOpen, onClose, preferences, updatePreferenc
   }
 
   const toggleLanguage = (langCode: string) => {
-    setLocalPreferences((prev: any) => ({
+    setLocalPreferences((prev) => ({
       ...prev,
       languages: prev.languages.includes(langCode)
         ? prev.languages.filter((l: string) => l !== langCode)

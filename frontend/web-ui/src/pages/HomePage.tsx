@@ -645,7 +645,7 @@ export function HomePage() {
     if ('ImageCapture' in window && track) {
       try {
         devLog('Using ImageCapture API for high-quality photo')
-        const imageCapture = new (window as any).ImageCapture(track)
+        const imageCapture = new (window as unknown as { ImageCapture: typeof ImageCapture }).ImageCapture(track)
         const blob = await imageCapture.takePhoto().catch((error: unknown) => {
           devWarn('ImageCapture failed, falling back to canvas:', error)
           return null

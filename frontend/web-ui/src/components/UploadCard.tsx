@@ -32,6 +32,10 @@ export const UploadCard = memo<UploadCardProps>(({
   showPreferencesMode = false,
   onPreferencesSubmit
 }) => {
+  // State for preferences selection
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
+
   // Don't render anything when uploading
   if (isUploading) return null
 
@@ -57,10 +61,6 @@ export const UploadCard = memo<UploadCardProps>(({
     { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
     { code: 'hi', name: 'Hindi', flag: '🇮🇳' }
   ]
-
-  // State for preferences selection
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
 
   // Handle genre selection
   const toggleGenre = (genre: string) => {

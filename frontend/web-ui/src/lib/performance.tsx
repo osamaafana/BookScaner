@@ -100,7 +100,7 @@ export function usePerformanceMonitoring() {
 
 // Memory usage monitoring
 export function getMemoryUsage(): { used: number; total: number; limit: number } | null {
-  // @ts-ignore - performance.memory is not in all browsers
+  // @ts-expect-error - performance.memory is not in all browsers
   const memory = performance.memory
   if (!memory) return null
 
@@ -125,7 +125,7 @@ export function getBundleSize(): { main: number; vendors: number; total: number 
 // React component for performance display (development only)
 export const PerformanceDisplay: React.FC = () => {
   const [isVisible, setIsVisible] = React.useState(false)
-  const [metrics, setMetrics] = React.useState<Record<string, any>>({})
+  const [metrics, setMetrics] = React.useState<Record<string, number>>({})
   const monitor = PerformanceMonitor.getInstance()
 
   React.useEffect(() => {
