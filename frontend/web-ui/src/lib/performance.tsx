@@ -125,7 +125,7 @@ export function getBundleSize(): { main: number; vendors: number; total: number 
 // React component for performance display (development only)
 export const PerformanceDisplay: React.FC = () => {
   const [isVisible, setIsVisible] = React.useState(false)
-  const [metrics, setMetrics] = React.useState<Record<string, number>>({})
+  const [metrics, setMetrics] = React.useState<Record<string, { avg: number; min: number; max: number; count: number }>>({})
   const monitor = PerformanceMonitor.getInstance()
 
   React.useEffect(() => {
@@ -142,7 +142,7 @@ export const PerformanceDisplay: React.FC = () => {
 
   if (!import.meta.env.DEV) return null
 
-  const children = [
+  const children: React.ReactNode[] = [
     <button
       key="perf-button"
       onClick={() => setIsVisible(!isVisible)}
@@ -150,20 +150,20 @@ export const PerformanceDisplay: React.FC = () => {
     >
       {`Perf: ${Object.keys(metrics).length} metrics`}
     </button>
-  ] as const
+  ]
 
   if (isVisible) {
     const metricsElements = Object.entries(metrics).map(([name, data]) => (
-      <div key={`${name}-container`} className="mb-2 text-sm">
-        <div key={`${name}-name`} className="font-mono">{name}</div>
-        <div key={`${name}-data`} className="text-gray-300">
+      <div key={name} className="mb-2 text-sm">
+        <div className="font-mono">{name}</div>
+        <div className="text-gray-300">
           {`Avg: ${data.avg.toFixed(1)}ms | Max: ${data.max.toFixed(1)}ms | Count: ${data.count}`}
         </div>
       </div>
     ))
 
     const memoryElement = (
-      <div className="mt-4 pt-2 border-t border-gray-600">
+      <div key="memory-info" className="mt-4 pt-2 border-t border-gray-600">
         <div className="text-sm">
           {`Memory: ${JSON.stringify(getMemoryUsage(), null, 2)}`}
         </div>
@@ -172,7 +172,7 @@ export const PerformanceDisplay: React.FC = () => {
 
     children.push(
       <div key="metrics-panel" className="bg-black/90 text-white p-4 rounded mt-2 max-w-md max-h-96 overflow-auto">
-        <h3 key="metrics-title" className="font-bold mb-2">Performance Metrics</h3>
+        <h3 className="font-bold mb-2">Performance Metrics</h3>
         {metricsElements}
         {memoryElement}
       </div>

@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { CardContent } from './ui/Card'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, CheckCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface EnrichedBook {
@@ -131,6 +131,12 @@ const BookItem = memo(({
             }}
           />
 
+          {/* Selection Checkmark */}
+          {book.selected && (
+            <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 shadow-lg">
+              <CheckCircle className="h-4 w-4" />
+            </div>
+          )}
         </div>
 
         {/* Book Info */}

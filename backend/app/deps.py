@@ -31,7 +31,10 @@ def get_redis():
 
 
 # --- Helpers ---
-_DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9_\-:.]{8,128}$")
+# Updated regex to match UUID format (8-4-4-4-12 hex digits)
+_DEVICE_ID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
 
 
 def client_ip(req: Request) -> str:

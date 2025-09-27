@@ -111,6 +111,11 @@ app.use("/api/admin", createProxyMiddleware({
   target: BACKEND_URL,
   changeOrigin: true,
   selfHandleResponse: false,
+  pathRewrite: (_path, req) => {
+    // /api/admin/foo -> /v1/admin/foo
+    const rest = (req.url || "").replace(/^\/api\/admin\/?/, "");
+    return `/v1/admin/${rest}`;
+  },
   on: {
     proxyReq: (proxyReq: any, req: any) => {
       // pass through device id

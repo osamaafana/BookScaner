@@ -16,6 +16,7 @@ interface UploadCardProps {
   cameraButtonRef?: React.RefObject<HTMLButtonElement | null>
   showPreferencesMode?: boolean
   onPreferencesSubmit?: (genres: string[], languages: string[]) => void
+  cardRef?: React.RefObject<HTMLDivElement | null>
 }
 
 
@@ -30,7 +31,8 @@ export const UploadCard = memo<UploadCardProps>(({
   onKeyDown,
   cameraButtonRef,
   showPreferencesMode = false,
-  onPreferencesSubmit
+  onPreferencesSubmit,
+  cardRef
 }) => {
   // State for preferences selection
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
@@ -89,18 +91,21 @@ export const UploadCard = memo<UploadCardProps>(({
 
   return (
     <div className="w-full mx-auto">
-      <Card className={cn(
-        "relative overflow-hidden transition-all duration-700",
-        showPreferencesMode
-          ? "bg-gradient-to-br from-card/95 via-card to-primary/5 border-primary/30"
-          : "bg-gradient-to-br from-card/90 via-card to-primary/10 border-2 backdrop-blur-sm",
-        dragOver
-          ? "border-primary bg-gradient-to-br from-primary/20 to-blue-500/20 scale-[1.02] shadow-2xl shadow-primary/25"
-          : showPreferencesMode
-            ? "border-primary/30 hover:border-primary/60"
-            : "border-border/50 hover:border-primary/60 hover:shadow-xl",
-        isUploading && "border-primary shadow-2xl shadow-primary/30"
-      )}>
+      <Card
+        ref={cardRef}
+        className={cn(
+          "relative overflow-hidden transition-all duration-700",
+          showPreferencesMode
+            ? "bg-gradient-to-br from-card/95 via-card to-primary/5 border-primary/30"
+            : "bg-gradient-to-br from-card/90 via-card to-primary/10 border-2 backdrop-blur-sm",
+          dragOver
+            ? "border-primary bg-gradient-to-br from-primary/20 to-blue-500/20 scale-[1.02] shadow-2xl shadow-primary/25"
+            : showPreferencesMode
+              ? "border-primary/30 hover:border-primary/60"
+              : "border-border/50 hover:border-primary/60 hover:shadow-xl",
+          isUploading && "border-primary shadow-2xl shadow-primary/30"
+        )}
+      >
         {/* Animated border effect */}
         {(dragOver || isUploading) && (
           <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary via-blue-500 to-purple-500 p-[2px]">

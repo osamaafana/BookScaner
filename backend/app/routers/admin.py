@@ -216,21 +216,13 @@ async def flush_device_data(
             await conn.commit()
 
         logger.info(f"Device data flushed successfully for device {did}")
-        return Response(
-            status_code=200,
-            content={
-                "ok": True,
-                "message": f"Device data flushed successfully for device {did}",
-                "tables_cleared": len(tables_cleared),
-                "tables": tables_cleared,
-                "device_id": did,
-            },
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "admin_token, content-type, x-device-id",
-            },
-        )
+        return {
+            "ok": True,
+            "message": f"Device data flushed successfully for device {did}",
+            "tables_cleared": len(tables_cleared),
+            "tables": tables_cleared,
+            "device_id": did,
+        }
 
     except Exception as e:
         logger.error(f"Failed to flush device data for {did}: {e}")

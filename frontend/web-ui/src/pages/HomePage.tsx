@@ -10,6 +10,7 @@ import { api } from '../api/client'
 import { UploadCard } from '../components/UploadCard'
 import { ProcessingSteps } from '../components/ProcessingSteps'
 import { CollectionGrid } from '../components/CollectionGrid'
+import { PreferencesModal } from '../components/PreferencesModal'
 import { processImageFile, getImageFormatErrorMessage, isHeicFormat } from '../lib/imageUtils'
 import { getModelLabel, type ScanResult } from '../api/types'
 import { useRecommendations } from '../contexts/RecommendationsContext'
@@ -61,6 +62,7 @@ export function HomePage() {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const uploadCardRef = useRef<HTMLDivElement>(null)
+  const uploadCardInnerRef = useRef<HTMLDivElement>(null)
   const [enrichedBooks, setEnrichedBooks] = useState<EnrichedBook[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
@@ -79,11 +81,13 @@ export function HomePage() {
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [showAITesting, setShowAITesting] = useState(false)
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showPreferencesMode, setShowPreferencesMode] = useState(false)
   const [showMainContent, setShowMainContent] = useState(false)
   const retryTimerRef = useRef<number | null>(null)
   const currentXHRRef = useRef<XMLHttpRequest | null>(null)
   const collectionCardRef = useRef<HTMLDivElement>(null)
+  const aiTestingRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const workerRef = useRef<Worker | undefined>(undefined)
@@ -194,37 +198,44 @@ export function HomePage() {
     const hasLanguages = preferences.languages.length > 0
 
     if (!hasGenres || !hasLanguages) {
-      // Show preferences mode if user hasn't set preferences
-      setShowPreferencesMode(true)
-      // Scroll to preferences card with smooth animation
-      setTimeout(() => {
-        if (uploadCardRef.current) {
-          // Calculate offset to position card perfectly in center
-          const elementTop = uploadCardRef.current.getBoundingClientRect().top
-          const offset = elementTop - (window.innerHeight / 2) + (uploadCardRef.current.offsetHeight / 2)
+      // Check if mobile device to show modal, otherwise show inline mode
+      const isMobile = window.innerWidth < 768
+      if (isMobile) {
+        setShowPreferencesModal(true)
+      } else {
+        setShowPreferencesMode(true)
+        // Wait for DOM to update after showing main content, then scroll to preferences card
+        setTimeout(() => {
+          if (uploadCardRef.current) {
+            // Calculate offset to position card perfectly in center
+            const elementTop = uploadCardRef.current.getBoundingClientRect().top
+            const offset = elementTop - (window.innerHeight / 2) + (uploadCardRef.current.offsetHeight / 2)
 
-          window.scrollBy({
-            top: offset,
-            behavior: 'smooth'
-          })
+            window.scrollBy({
+              top: offset,
+              behavior: 'smooth'
+            })
 
-          // Add a subtle highlight effect to the preferences card
-          const card = uploadCardRef.current
-          if (card) {
-            card.style.transition = 'all 0.5s ease'
-            card.style.transform = 'scale(1.02)'
-            card.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(59, 130, 246, 0.5)'
+            // Add a subtle highlight effect to the preferences card
+            const card = uploadCardInnerRef.current
+            if (card) {
+              card.style.transition = 'all 0.5s ease'
+              card.style.transform = 'scale(1.02)'
+              card.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(59, 130, 246, 0.5)'
 
-            setTimeout(() => {
-              card.style.transform = 'scale(1)'
-              card.style.boxShadow = ''
-            }, 1000)
+              setTimeout(() => {
+                card.style.transform = 'scale(1)'
+                card.style.boxShadow = ''
+              }, 1000)
+            }
           }
-        }
-      }, 100)
+        }, 300) // Increased timeout to ensure DOM is updated
+      }
     } else {
-      // Scroll to upload card if preferences are already set
-      scrollToUploadCard()
+      // Wait for DOM to update after showing main content, then scroll to upload card
+      setTimeout(() => {
+        scrollToUploadCard()
+      }, 300) // Increased timeout to ensure DOM is updated
     }
   }, [preferences, isLoading, toast])
 
@@ -232,6 +243,7 @@ export function HomePage() {
   const handlePreferencesSubmit = useCallback(async (genres: string[], languages: string[]) => {
     try {
       await updatePreferences({ genres, languages })
+      setShowPreferencesModal(false)
       setShowPreferencesMode(false)
       toast.success('Preferences saved! You can now upload your bookshelf image.')
 
@@ -257,7 +269,7 @@ export function HomePage() {
         })
 
         // Add a subtle highlight effect to the upload card
-        const card = uploadCardRef.current
+        const card = uploadCardInnerRef.current
         if (card) {
           card.style.transition = 'all 0.5s ease'
           card.style.transform = 'scale(1.02)'
@@ -266,6 +278,35 @@ export function HomePage() {
           setTimeout(() => {
             card.style.transform = 'scale(1)'
             card.style.boxShadow = ''
+          }, 1000)
+        }
+      }, 100)
+    }
+  }, [])
+
+  // Scroll to AI testing section with smooth animation
+  const scrollToAITesting = useCallback(() => {
+    if (aiTestingRef.current) {
+      setTimeout(() => {
+        // Calculate offset to position section perfectly in center
+        const elementTop = aiTestingRef.current!.getBoundingClientRect().top
+        const offset = elementTop - (window.innerHeight / 2) + (aiTestingRef.current!.offsetHeight / 2)
+
+        window.scrollBy({
+          top: offset,
+          behavior: 'smooth'
+        })
+
+        // Add a subtle highlight effect to the AI testing section
+        const section = aiTestingRef.current
+        if (section) {
+          section.style.transition = 'all 0.5s ease'
+          section.style.transform = 'scale(1.01)'
+          section.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(59, 130, 246, 0.5)'
+
+          setTimeout(() => {
+            section.style.transform = 'scale(1)'
+            section.style.boxShadow = ''
           }, 1000)
         }
       }, 100)
@@ -380,6 +421,18 @@ export function HomePage() {
           ? { ...book, selected: !book.selected }
           : book
       )
+    )
+  }
+
+  const selectAllBooks = () => {
+    setEnrichedBooks(prev =>
+      prev.map(book => ({ ...book, selected: true }))
+    )
+  }
+
+  const deselectAllBooks = () => {
+    setEnrichedBooks(prev =>
+      prev.map(book => ({ ...book, selected: false }))
     )
   }
 
@@ -1158,6 +1211,7 @@ export function HomePage() {
                 cameraButtonRef={cameraButtonRef}
                 showPreferencesMode={showPreferencesMode}
                 onPreferencesSubmit={handlePreferencesSubmit}
+                cardRef={uploadCardInnerRef}
               />
             ) : (
               /* AI-Enhanced Library Collection */
@@ -1170,9 +1224,12 @@ export function HomePage() {
                   onToggleBookSelection={toggleBookSelection}
                   onSaveSelectedBooks={saveSelectedBooks}
                   onGenerateRecommendations={generateRecommendations}
+                  onSelectAll={selectAllBooks}
+                  onDeselectAll={deselectAllBooks}
                 onScanAnother={() => {
                     setEnrichedBooks([])
                     setShowMainContent(false)
+                    setShowPreferencesModal(false)
                     setShowPreferencesMode(false)
                     setShowAITesting(false)
                     // Revoke URL before clearing state
@@ -1250,7 +1307,7 @@ export function HomePage() {
 
         {/* AI Testing Section - Enhanced Design (only show after start button pressed) */}
         {showMainContent && (!showAITesting ? (
-        <div className="mt-24 w-full text-center relative">
+        <div ref={aiTestingRef} className="mt-24 w-full text-center relative">
           {/* Background decoration */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
@@ -1279,7 +1336,13 @@ export function HomePage() {
               <Button
                 size="lg"
                 className="gap-3 px-10 py-5 text-lg font-semibold bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-600 hover:from-blue-600 hover:via-purple-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group"
-                onClick={() => setShowAITesting(true)}
+                onClick={() => {
+                  setShowAITesting(true)
+                  // Wait for DOM to update, then scroll to AI testing section
+                  setTimeout(() => {
+                    scrollToAITesting()
+                  }, 300)
+                }}
               >
                 <Zap className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
                 Load AI Testing Samples
@@ -1288,16 +1351,18 @@ export function HomePage() {
           </div>
         </div>
         ) : (
-          <Suspense fallback={
-            <div className="mt-20 max-w-6xl mx-auto text-center">
-              <div className="flex items-center justify-center gap-3 py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className="text-lg text-muted-foreground">Loading AI testing samples...</span>
+          <div ref={aiTestingRef} className="mt-20">
+            <Suspense fallback={
+              <div className="max-w-6xl mx-auto text-center">
+                <div className="flex items-center justify-center gap-3 py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="text-lg text-muted-foreground">Loading AI testing samples...</span>
+            </div>
           </div>
-        </div>
-          }>
-            <AITestingSection onSampleSelect={handleSampleSelect} />
-          </Suspense>
+            }>
+              <AITestingSection onSampleSelect={handleSampleSelect} />
+            </Suspense>
+          </div>
         ))}
 
         {/* Hidden file inputs (only show after start button pressed) */}
@@ -1314,6 +1379,19 @@ export function HomePage() {
           />
         )}
       </div>
+
+      {/* Preferences Modal */}
+      <PreferencesModal
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
+        onSubmit={handlePreferencesSubmit}
+        onSuccess={() => {
+          setShowPreferencesModal(false)
+          setShowPreferencesMode(false)
+          toast.success('Preferences saved! You can now upload your bookshelf image.')
+
+        }}
+      />
 
       {/* Enhanced Footer */}
       <Footer />

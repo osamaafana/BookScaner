@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { Brain, Zap, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
+import { Brain, Zap, CheckCircle2, Loader2, Sparkles, CheckSquare, Square } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
 import { Badge } from './ui/Badge'
@@ -28,6 +28,8 @@ interface CollectionGridProps {
   onSaveSelectedBooks: () => void
   onGenerateRecommendations: () => void
   onScanAnother: () => void
+  onSelectAll: () => void
+  onDeselectAll: () => void
 }
 
 export const CollectionGrid = memo<CollectionGridProps>(({
@@ -38,15 +40,48 @@ export const CollectionGrid = memo<CollectionGridProps>(({
   onToggleBookSelection,
   onSaveSelectedBooks,
   onGenerateRecommendations,
-  onScanAnother
+  onScanAnother,
+  onSelectAll,
+  onDeselectAll
 }) => {
   const [gridContainerRef, gridDimensions] = useContainerDimensions<HTMLDivElement>()
 
   if (enrichedBooks.length === 0) return null
 
+  const selectedCount = enrichedBooks.filter(book => book.selected).length
+  const allSelected = selectedCount === enrichedBooks.length
+  const someSelected = selectedCount > 0 && selectedCount < enrichedBooks.length
+
   return (
     <div className="w-full mx-auto">
-      <Card className="collection-card border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
+      <Card className="collection-card border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm relative">
+        {/* Select All Button - Top Left Corner */}
+        <div className="absolute top-4 left-4 z-40">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10 bg-card/80 backdrop-blur-sm shadow-lg"
+            onClick={allSelected ? onDeselectAll : onSelectAll}
+          >
+            {allSelected ? (
+              <>
+                <CheckSquare className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium">Deselect All</span>
+              </>
+            ) : someSelected ? (
+              <>
+                <CheckSquare className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Select All</span>
+              </>
+            ) : (
+              <>
+                <Square className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Select All</span>
+              </>
+            )}
+          </Button>
+        </div>
+
         <CardContent className="p-4">
           <div className="space-y-4">
             {/* Sticky Header */}
@@ -109,7 +144,12 @@ export const CollectionGrid = memo<CollectionGridProps>(({
           ) : (
             <>
               <CheckCircle2 className="h-5 w-5" />
-              Save to Library ({enrichedBooks.filter(b => b.selected).length})
+              Save to Library
+              {enrichedBooks.filter(book => book.selected).length > 0 && (
+                <Badge variant="secondary" className="ml-2 bg-white/20 text-white border-white/30">
+                  {enrichedBooks.filter(book => book.selected).length}
+                </Badge>
+              )}
             </>
           )}
         </Button>
