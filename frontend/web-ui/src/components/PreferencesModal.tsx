@@ -162,7 +162,7 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
 
       // If response has a 'preferences' property, use that
       if (response && typeof response === 'object' && 'preferences' in response) {
-        preferences = (response as any).preferences
+        preferences = (response as { preferences: unknown }).preferences
       } else if (response && typeof response === 'object' && ('genres' in response || 'languages' in response)) {
         // If response is the preferences object directly
         preferences = response
@@ -186,7 +186,7 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
           setSelectedLanguages(validLanguages)
         }
       }
-    } catch (err) {
+    } catch {
       // Don't show error for failed preference loading - just start with empty state
       // This allows new users to set preferences even if the API call fails
     } finally {
