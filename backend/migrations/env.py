@@ -9,8 +9,12 @@ from sqlalchemy import engine_from_config, pool
 config = context.config
 fileConfig(config.config_file_name)
 
-# set URL dynamically from .env
-config.set_main_option("sqlalchemy.url", settings.POSTGRES_URL.replace("+asyncpg", ""))
+# Use direct connection string (bypassing security layer temporarily)
+# Convert asyncpg SSL format back to psycopg2 format for migrations
+migration_url = settings.POSTGRES_URL.replace("+asyncpg", "")
+if "ssl=require" in migration_url:
+    migration_url = migration_url.replace("ssl=require", "sslmode=require")
+config.set_main_option("sqlalchemy.url", migration_url)
 
 target_metadata = Base.metadata
 

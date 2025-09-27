@@ -11,12 +11,22 @@ RECS_TTL = 7 * 24 * 3600  # 7d
 
 async def cache_set(key: str, value: Any, ttl: int):
     r = get_redis()
-    await r.setex(key, ttl, json.dumps(value))
+    if hasattr(r, "setex"):
+        # Upstash Redis (synchronous)
+        r.setex(key, ttl, json.dumps(value))
+    else:
+        # Traditional Redis (async)
+        await r.setex(key, ttl, json.dumps(value))
 
 
 async def cache_get(key: str) -> Any:
     r = get_redis()
-    raw = await r.get(key)
+    if hasattr(r, "get"):
+        # Upstash Redis (synchronous)
+        raw = r.get(key)
+    else:
+        # Traditional Redis (async)
+        raw = await r.get(key)
     return json.loads(raw) if raw else None
 
 

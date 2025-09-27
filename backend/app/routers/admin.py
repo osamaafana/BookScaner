@@ -4,6 +4,7 @@ from app.cache.redis import get_redis
 from app.config import settings
 from app.db.session import async_engine
 from app.deps import device_id
+from app.security.secrets import secret_manager
 from app.services.cost_guard import get_month_spend
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import Response
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
 def _guard(admin_token: str | None):
-    if not admin_token or admin_token != settings.ADMIN_TOKEN:
+    """Secure admin token validation with constant-time comparison"""
+    if not secret_manager.validate_admin_token(admin_token):
+        logger.warning("Invalid admin token attempt from IP")
         raise HTTPException(HTTP_401_UNAUTHORIZED, "invalid admin token")
 
 
@@ -160,10 +163,18 @@ async def flush_device_data(
         redis_client = get_redis()
         # Clear device-specific cache keys
         pattern = f"*:*{did}:*"
-        keys = await redis_client.keys(pattern)
-        if keys:
-            await redis_client.delete(*keys)
-            logger.info(f"Cleared {len(keys)} Redis keys for device {did}")
+        if hasattr(redis_client, "keys"):
+            # Upstash Redis (synchronous)
+            keys = redis_client.keys(pattern)
+            if keys:
+                redis_client.delete(*keys)
+                logger.info(f"Cleared {len(keys)} Redis keys for device {did}")
+        else:
+            # Traditional Redis (async)
+            keys = await redis_client.keys(pattern)
+            if keys:
+                await redis_client.delete(*keys)
+                logger.info(f"Cleared {len(keys)} Redis keys for device {did}")
 
         # Clear database records for this device
         async with async_engine.connect() as conn:
@@ -229,3 +240,24 @@ async def flush_device_data(
         raise HTTPException(
             status_code=500, detail=f"Failed to flush device data: {str(e)}"
         )
+
+
+@router.post("/rotate-admin-token")
+async def rotate_admin_token(
+    admin_token: str | None = Header(None, convert_underscores=False),
+):
+    """Rotate the admin token (admin only)"""
+    _guard(admin_token)
+
+    try:
+        new_token = secret_manager.rotate_admin_token()
+        logger.warning("Admin token rotated by admin user")
+
+        return {
+            "message": "Admin token rotated successfully",
+            "new_token": new_token,
+            "warning": "Please update your environment variables immediately!",
+        }
+    except Exception as e:
+        logger.error(f"Failed to rotate admin token: {e}")
+        raise HTTPException(500, f"Failed to rotate admin token: {e}")

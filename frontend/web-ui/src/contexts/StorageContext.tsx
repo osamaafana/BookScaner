@@ -172,8 +172,8 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
         setBooks(storedBooks.sort((a, b) => b.addedAt - a.addedAt))
 
         const storedPrefs = await database.get('preferences', 'user-preferences')
-        if (storedPrefs) {
-          setPreferences(storedPrefs.value)
+        if (storedPrefs && typeof storedPrefs === 'object' && storedPrefs !== null && 'value' in storedPrefs) {
+          setPreferences((storedPrefs as any).value as Preferences)
         }
 
         // Load latest scan result
@@ -205,6 +205,16 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   const addBook = async (bookData: Omit<Book, 'id' | 'addedAt'>) => {
     if (!db) return
 
+    // Check if book already exists by title (case-insensitive)
+    const existingBook = books.find(existingBook =>
+      existingBook.title.toLowerCase().trim() === bookData.title.toLowerCase().trim()
+    )
+
+    if (existingBook) {
+      console.log(`Book "${bookData.title}" already exists in library, skipping duplicate`)
+      throw new Error(`Book "${bookData.title}" is already in your library`)
+    }
+
     const book: Book = {
       ...bookData,
       id: `book-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -219,6 +229,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
       await queueHistory(book.id, 'saved')
     } catch (error) {
       console.error('Failed to add book:', error)
+      throw error // Re-throw to let calling code handle the error
     }
   }
 
@@ -341,7 +352,7 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
           if (action.action === 'saved' && book) {
             success = await syncBookWithBackend(book)
           } else if (action.action === 'removed') {
-            success = await syncBookRemovalWithBackend(action.bookId)
+            success = await syncBookRemovalWithBackend()
           }
 
           if (success) {

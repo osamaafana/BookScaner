@@ -55,32 +55,6 @@ export const CollectionGrid = memo<CollectionGridProps>(({
   return (
     <div className="w-full mx-auto">
       <Card className="collection-card border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm relative">
-        {/* Select All Button - Top Left Corner */}
-        <div className="absolute top-4 left-4 z-40">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10 bg-card/80 backdrop-blur-sm shadow-lg"
-            onClick={allSelected ? onDeselectAll : onSelectAll}
-          >
-            {allSelected ? (
-              <>
-                <CheckSquare className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium">Deselect All</span>
-              </>
-            ) : someSelected ? (
-              <>
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Select All</span>
-              </>
-            ) : (
-              <>
-                <Square className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Select All</span>
-              </>
-            )}
-          </Button>
-        </div>
 
         <CardContent className="p-4">
           <div className="space-y-4">
@@ -93,11 +67,34 @@ export const CollectionGrid = memo<CollectionGridProps>(({
                 <p className="text-sm text-muted-foreground">Click or swipe books to select for your library</p>
 
                 {/* Processing Insights */}
-                <div className="flex items-center justify-center gap-4 text-xs">
+                <div className="flex items-center justify-center gap-3 text-xs">
                   <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-blue-600/10 border border-blue-500/20">
                     <Brain className="h-3 w-3 text-blue-500" />
                     <span className="text-blue-600 font-medium">{modelUsed || 'AI Model'}</span>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10 bg-card/80 backdrop-blur-sm shadow-lg px-3 py-1 h-auto"
+                    onClick={allSelected ? onDeselectAll : onSelectAll}
+                  >
+                    {allSelected ? (
+                      <>
+                        <CheckSquare className="h-3 w-3 text-green-500" />
+                        <span className="text-xs font-medium">Deselect All</span>
+                      </>
+                    ) : someSelected ? (
+                      <>
+                        <CheckSquare className="h-3 w-3 text-primary" />
+                        <span className="text-xs font-medium">Select All</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs font-medium">Select All</span>
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>

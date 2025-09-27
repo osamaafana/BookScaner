@@ -11,7 +11,8 @@ import type {
   UpdatePreferencesRequest,
   UpdatePreferencesResponse,
   BookAnalysisRequest,
-  BookAnalysisResponse
+  BookAnalysisResponse,
+  BookStatus
 } from './types'
 
 // Validate and sanitize gateway URL with fallback to same origin
@@ -452,6 +453,21 @@ export const api = {
         languages: payload.user_languages
       }
     }
+  },
+
+  // Update book status
+  async updateBookStatus(bookId: number, status: BookStatus): Promise<{ id: number; title: string; status: BookStatus; message: string }> {
+    const response = await apiFetch<{ id: number; title: string; status: BookStatus; message: string }>(
+      `/v1/books/${bookId}/status`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      }
+    )
+    return response
   }
 }
 

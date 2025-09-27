@@ -10,6 +10,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 
 import { deviceMiddleware } from "./middleware/device";
 import { burstLimiter } from "./middleware/burst";
+import { securityMiddleware, additionalSecurityHeaders } from "./middleware/security";
 
 const PORT = Number(process.env.PORT || 3001);
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
@@ -23,8 +24,38 @@ const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const app = express();
 app.set("trust proxy", 1); // behind Vercel/NGINX/CDN
-app.use(helmet());
+// Enhanced security headers with Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "https://api.nvidia.com", "https://integrate.api.nvidia.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Disable for compatibility
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  frameguard: { action: "deny" },
+  hidePoweredBy: true,
+}));
 app.use(cookieParser());
+
+// Security middleware
+app.use(securityMiddleware);
+app.use(additionalSecurityHeaders);
 
 // Basic per-IP windowed limits
 app.use(

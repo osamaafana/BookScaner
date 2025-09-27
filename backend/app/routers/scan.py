@@ -4,12 +4,15 @@ from app.config import settings
 from app.db.models import Preference
 from app.deps import device_id, get_db, rate_limit_dep
 from app.services.books_meta_service import BooksMetaService
+from app.services.image_security import (ImageSecurityError,
+                                         validate_and_clean_image)
 from app.services.vision import VisionService
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                              HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+                              HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                              HTTP_422_UNPROCESSABLE_ENTITY)
 
 router = APIRouter(tags=["scan"])
 _service = VisionService()
@@ -81,6 +84,21 @@ async def scan(
         raise HTTPException(
             HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             f"Max upload is {settings.MAX_UPLOAD_MB} MB",
+        )
+
+    # Security: Validate and clean image (magic bytes, EXIF stripping, dimensions)
+    try:
+        blob = validate_and_clean_image(
+            blob,
+            max_size_mb=settings.MAX_UPLOAD_MB,
+            max_dimension=settings.MAX_IMAGE_DIMENSION,
+            min_dimension=settings.MIN_IMAGE_DIMENSION,
+        )
+        logger.info(f"Image security validation passed for device {did}")
+    except ImageSecurityError as e:
+        logger.warning(f"Image security validation failed for device {did}: {e}")
+        raise HTTPException(
+            HTTP_422_UNPROCESSABLE_ENTITY, f"Image security validation failed: {e}"
         )
 
     try:

@@ -158,11 +158,11 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
       const response = await api.getPreferences()
 
       // Handle different response structures
-      let preferences = response
+      let preferences: any = response
 
       // If response has a 'preferences' property, use that
       if (response && typeof response === 'object' && 'preferences' in response) {
-        preferences = (response as { preferences: unknown }).preferences
+        preferences = (response as { preferences: any }).preferences
       } else if (response && typeof response === 'object' && ('genres' in response || 'languages' in response)) {
         // If response is the preferences object directly
         preferences = response
@@ -172,7 +172,7 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
       if (preferences && typeof preferences === 'object') {
         // Handle genres
         if (preferences.genres && Array.isArray(preferences.genres)) {
-          const validGenres = preferences.genres.filter(genre =>
+          const validGenres = preferences.genres.filter((genre: any) =>
             typeof genre === 'string' && genre.trim().length > 0
           )
           setSelectedGenres(validGenres)
@@ -180,7 +180,7 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
 
         // Handle languages
         if (preferences.languages && Array.isArray(preferences.languages)) {
-          const validLanguages = preferences.languages.filter(lang =>
+          const validLanguages = preferences.languages.filter((lang: any) =>
             typeof lang === 'string' && lang.trim().length > 0
           )
           setSelectedLanguages(validLanguages)
@@ -229,10 +229,10 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
     >
       <div
         ref={modalRef}
-        className="w-full max-w-md mx-4 bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl transform transition-transform duration-300 ease-out"
+        className="w-full max-w-md mx-2 sm:mx-4 bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl transform transition-transform duration-300 ease-out"
         style={{
           transform: `translateY(${dragOffset}px)`,
-          maxHeight: '90vh'
+          maxHeight: '95vh'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -242,31 +242,32 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
         aria-modal="true"
         aria-labelledby="preferences-title"
       >
-        {/* head area */}
-        <div className="flex justify-center pt-3 pb-2">
+        {/* Drag handle for mobile */}
+        <div className="flex justify-center pt-2 pb-1 sm:hidden">
+          <div className="w-8 h-1 bg-muted-foreground/30 rounded-full"></div>
         </div>
 
         {/* Header */}
-        <div className="px-6 pb-4 relative">
+        <div className="px-4 sm:px-6 pb-3 sm:pb-4 relative">
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-0 right-4 w-10 h-10 rounded-full bg-gradient-to-br from-card/90 to-card/70 hover:from-primary/20 hover:to-blue-500/20 border-2 border-border/30 hover:border-primary/50 flex items-center justify-center transition-all duration-300 hover:scale-110 group shadow-lg hover:shadow-xl backdrop-blur-sm"
+            className="absolute top-0 right-2 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-card/90 to-card/70 hover:from-primary/20 hover:to-blue-500/20 border-2 border-border/30 hover:border-primary/50 flex items-center justify-center transition-all duration-300 hover:scale-110 group shadow-lg hover:shadow-xl backdrop-blur-sm"
             aria-label="Close preferences modal"
           >
-            <X className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
           </button>
 
-          <div className="text-center space-y-3">
-            <div className="relative mx-auto w-16 h-16">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center border border-primary/30">
-                <Brain className="h-8 w-8 text-primary" />
+          <div className="text-center space-y-2 sm:space-y-3">
+            <div className="relative mx-auto w-12 h-12 sm:w-16 sm:h-16">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center border border-primary/30">
+                <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               </div>
             </div>
-            <h2 id="preferences-title" className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+            <h2 id="preferences-title" className="text-lg sm:text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
               {isLoading ? 'Loading Preferences...' : 'Setup Preferences'}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground px-2">
               {isLoading ? 'Loading your saved preferences...' :
                (selectedGenres.length > 0 || selectedLanguages.length > 0) ?
                'Your saved preferences are highlighted below' :
@@ -276,38 +277,38 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 space-y-6 max-h-[60vh] overflow-y-auto">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4 sm:space-y-6 max-h-[65vh] overflow-y-auto">
           {isLoading ? (
             /* Loading State */
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p className="text-sm text-muted-foreground text-center">
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12 space-y-3 sm:space-y-4">
+              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary"></div>
+              <p className="text-xs sm:text-sm text-muted-foreground text-center px-4">
                 Loading your saved preferences...
               </p>
             </div>
           ) : (
             <>
               {/* Genres Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-primary" />
+              <div className="space-y-2 sm:space-y-3">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
+                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                   Genres
                   {selectedGenres.length > 0 && (
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                      {selectedGenres.length} selected
+                    <span className="text-xs bg-primary/10 text-primary px-1.5 sm:px-2 py-0.5 rounded-full">
+                      {selectedGenres.length}
                     </span>
                   )}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {availableGenres.map((genre) => (
                     <button
                       key={genre}
                       onClick={() => toggleGenre(genre)}
                       className={cn(
-                        "px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 relative",
+                        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs font-medium transition-all duration-200 relative touch-manipulation",
                         selectedGenres.includes(genre)
                           ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
-                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50"
+                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50 active:bg-primary/10"
                       )}
                     >
                       {genre}
@@ -317,30 +318,31 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
               </div>
 
               {/* Languages Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-primary" />
+              <div className="space-y-2 sm:space-y-3">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                   Languages
                   {selectedLanguages.length > 0 && (
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                      {selectedLanguages.length} selected
+                    <span className="text-xs bg-primary/10 text-primary px-1.5 sm:px-2 py-0.5 rounded-full">
+                      {selectedLanguages.length}
                     </span>
                   )}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {availableLanguages.map((language) => (
                     <button
                       key={language.code}
                       onClick={() => toggleLanguage(language.code)}
                       className={cn(
-                        "px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 flex items-center gap-1 relative",
+                        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs font-medium transition-all duration-200 flex items-center gap-1 relative touch-manipulation",
                         selectedLanguages.includes(language.code)
                           ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
-                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50"
+                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50 active:bg-primary/10"
                       )}
                     >
-                      <span>{language.flag}</span>
-                      {language.name}
+                      <span className="text-sm">{language.flag}</span>
+                      <span className="hidden sm:inline">{language.name}</span>
+                      <span className="sm:hidden">{language.code.toUpperCase()}</span>
                     </button>
                   ))}
                 </div>
@@ -350,41 +352,44 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 pt-4 border-t border-border/50">
-          <div className="space-y-3">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-3 sm:pt-4 border-t border-border/50">
+          <div className="space-y-2 sm:space-y-3">
             {/* Error Message */}
             {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-sm text-destructive text-center">{error}</p>
+              <div className="p-2 sm:p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-xs sm:text-sm text-destructive text-center">{error}</p>
               </div>
             )}
 
             <Button
               size="lg"
-              className="w-full gap-2 px-6 py-3 text-sm font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full gap-2 px-4 sm:px-6 py-2.5 sm:py-3 text-sm font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
               onClick={handleSubmit}
               disabled={isLoading || selectedGenres.length === 0 || selectedLanguages.length === 0 || isSubmitting}
             >
               {isSubmitting ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Saving...
+                  <span className="hidden sm:inline">Saving...</span>
+                  <span className="sm:hidden">Save</span>
                 </>
               ) : isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Loading...
+                  <span className="hidden sm:inline">Loading...</span>
+                  <span className="sm:hidden">Load</span>
                 </>
               ) : (
                 <>
                   <Brain className="h-4 w-4" />
-                  Continue
+                  <span className="hidden sm:inline">Continue</span>
+                  <span className="sm:hidden">Done</span>
                 </>
               )}
             </Button>
 
             {selectedGenres.length === 0 || selectedLanguages.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-muted-foreground text-center px-2">
                 Select at least one genre and one language to continue
               </p>
             ) : null}

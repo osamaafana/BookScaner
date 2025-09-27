@@ -84,6 +84,7 @@ export function HomePage() {
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showPreferencesMode, setShowPreferencesMode] = useState(false)
   const [showMainContent, setShowMainContent] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const retryTimerRef = useRef<number | null>(null)
   const currentXHRRef = useRef<XMLHttpRequest | null>(null)
   const collectionCardRef = useRef<HTMLDivElement>(null)
@@ -125,6 +126,23 @@ export function HomePage() {
       }
     }
   }, [selectedPreview, cameraStream])
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    // Check on mount
+    checkMobile()
+
+    // Add resize listener
+    window.addEventListener('resize', checkMobile)
+
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+    }
+  }, [])
 
   // Clean camera abort on visibility change (iOS Safari compatibility)
   useEffect(() => {
@@ -199,7 +217,6 @@ export function HomePage() {
 
     if (!hasGenres || !hasLanguages) {
       // Check if mobile device to show modal, otherwise show inline mode
-      const isMobile = window.innerWidth < 768
       if (isMobile) {
         setShowPreferencesModal(true)
       } else {
@@ -441,20 +458,38 @@ export function HomePage() {
 
     try {
       const booksToSave = enrichedBooks.filter(book => book.selected)
+      const savedBooks = []
+      const duplicateBooks = []
 
       for (const book of booksToSave) {
-        await addBook({
-          title: book.title,
-          author: book.author,
-          isbn: book.isbn,
-          cover_url: book.cover_url,
-          fingerprint: book.fingerprint
-        })
+        try {
+          await addBook({
+            title: book.title,
+            author: book.author,
+            isbn: book.isbn,
+            cover_url: book.cover_url,
+            fingerprint: book.fingerprint
+          })
+          savedBooks.push(book.title)
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('already in your library')) {
+            duplicateBooks.push(book.title)
+          } else {
+            throw error // Re-throw unexpected errors
+          }
+        }
       }
 
-      toast.success(`Added ${booksToSave.length} book${booksToSave.length !== 1 ? 's' : ''} to your library!`)
+      // Show appropriate success message
+      if (savedBooks.length > 0 && duplicateBooks.length === 0) {
+        toast.success(`Added ${savedBooks.length} book${savedBooks.length !== 1 ? 's' : ''} to your library!`)
+      } else if (savedBooks.length > 0 && duplicateBooks.length > 0) {
+        toast.success(`Added ${savedBooks.length} new book${savedBooks.length !== 1 ? 's' : ''} to your library! ${duplicateBooks.length} book${duplicateBooks.length !== 1 ? 's were' : ' was'} already in your library.`)
+      } else if (duplicateBooks.length > 0) {
+        toast.info(`All ${duplicateBooks.length} selected book${duplicateBooks.length !== 1 ? 's are' : ' is'} already in your library.`)
+      }
 
-    } catch {
+    } catch (error) {
       devError('Failed to save books')
       toast.error('Failed to save books. Please try again.')
     } finally {
@@ -698,7 +733,7 @@ export function HomePage() {
     if ('ImageCapture' in window && track) {
       try {
         devLog('Using ImageCapture API for high-quality photo')
-        const imageCapture = new (window as unknown as { ImageCapture: typeof ImageCapture }).ImageCapture(track)
+        const imageCapture = new (window as any).ImageCapture(track)
         const blob = await imageCapture.takePhoto().catch((error: unknown) => {
           devWarn('ImageCapture failed, falling back to canvas:', error)
           return null
@@ -1124,27 +1159,27 @@ export function HomePage() {
       </div>
 
       {/* Content with responsive padding */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-12 relative z-10">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-8 md:py-12 relative z-10">
         {/* Hero Section - Advanced AI Interface */}
-        <div className="text-center space-y-12 mb-20 relative">
+        <div className="text-center space-y-8 md:space-y-12 mb-16 md:mb-20 relative">
           {/* Enhanced animated background elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-20 left-1/4 w-3 h-3 bg-primary/40 rounded-full animate-pulse shadow-lg shadow-primary/50"></div>
-            <div className="absolute top-32 right-1/3 w-2 h-2 bg-blue-400/50 rounded-full animate-ping shadow-lg shadow-blue-400/50"></div>
-            <div className="absolute bottom-40 left-1/3 w-2 h-2 bg-purple-400/40 rounded-full animate-pulse shadow-lg shadow-purple-400/50"></div>
+            <div className="absolute top-20 left-1/4 w-2 h-2 md:w-3 md:h-3 bg-primary/40 rounded-full animate-pulse shadow-lg shadow-primary/50"></div>
+            <div className="absolute top-32 right-1/3 w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-400/50 rounded-full animate-ping shadow-lg shadow-blue-400/50"></div>
+            <div className="absolute bottom-40 left-1/3 w-1.5 h-1.5 md:w-2 md:h-2 bg-purple-400/40 rounded-full animate-pulse shadow-lg shadow-purple-400/50"></div>
             <div className="absolute top-40 left-1/2 w-1 h-1 bg-cyan-400/60 rounded-full animate-bounce"></div>
-            <div className="absolute bottom-60 right-1/4 w-1.5 h-1.5 bg-indigo-400/50 rounded-full animate-pulse"></div>
+            <div className="absolute bottom-60 right-1/4 w-1 h-1 md:w-1.5 md:h-1.5 bg-indigo-400/50 rounded-full animate-pulse"></div>
 
             {/* Gradient orbs */}
-            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gradient-to-r from-primary/10 to-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-1/3 right-1/4 w-40 h-40 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/4 left-1/4 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-r from-primary/10 to-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-32 h-32 md:w-40 md:h-40 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
           </div>
 
-          <div className="space-y-8 relative z-10">
+          <div className="space-y-6 md:space-y-8 relative z-10">
             <div className="w-full max-w-none mx-0 px-0">
               {/* Enhanced header with better typography */}
-              <div className="space-y-6">
-                <h1 className="text-6xl md:text-8xl font-black text-foreground leading-[0.85] tracking-tight">
+              <div className="space-y-4 md:space-y-6">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-black text-foreground leading-[0.85] tracking-tight">
                   <span className="block relative">
                     Transform Your
                     <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0 rounded-full"></div>
@@ -1152,15 +1187,15 @@ export function HomePage() {
                   <span className="block bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent animate-gradient bg-300% leading-tight">
                     Library
                   </span>
-                  <span className="block text-4xl md:text-6xl font-light text-muted-foreground/90 mt-4 leading-relaxed">
+                  <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-light text-muted-foreground/90 mt-2 md:mt-4 leading-relaxed">
                     with AI Intelligence
                   </span>
                 </h1>
 
-                <div className="max-w-5xl mx-auto space-y-4">
-                  <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed font-light">
+                <div className="max-w-4xl md:max-w-5xl mx-auto space-y-3 md:space-y-4">
+                  <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground leading-relaxed font-light px-4">
                     Our advanced Vision Models instantly recognize book spines, extract metadata, and enrich your collection
-                    with <span className="text-primary font-semibold px-2 py-1 rounded-md">High accuracy</span> in real-time.
+                    with <span className="text-primary font-semibold px-1 md:px-2 py-0.5 md:py-1 rounded-md">High accuracy</span> in real-time.
                   </p>
 
                 </div>
@@ -1172,31 +1207,31 @@ export function HomePage() {
         </div>
 
         {/* Start Discovery Process Button */}
-        <div className="flex flex-col items-center justify-center mt-16 space-y-12">
+        <div className="flex flex-col items-center justify-center mt-12 md:mt-16 space-y-8 md:space-y-12">
           <Button
             size="lg"
             disabled={isLoading}
-            className="gap-3 px-12 py-6 text-lg font-semibold bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="gap-2 md:gap-3 px-8 md:px-12 py-4 md:py-6 text-base md:text-lg font-semibold bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group disabled:opacity-50 disabled:cursor-not-allowed w-full max-w-sm md:w-auto"
             onClick={handleStartDiscovery}
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-6 w-6 animate-spin" />
-                Loading Preferences...
+                <Loader2 className="h-5 w-5 md:h-6 md:w-6 animate-spin" />
+                <span className="text-sm md:text-base">Loading Preferences...</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
-                Start Discovery Process
+                <Sparkles className="h-5 w-5 md:h-6 md:w-6 group-hover:rotate-12 transition-transform duration-300" />
+                <span className="text-sm md:text-base">Start Discovery Process</span>
               </>
             )}
           </Button>
 
         </div>
 
-        {/* Main Content Area - Upload Card or Collection Grid (only show after start button pressed) */}
-        {showMainContent && (
-          <div ref={uploadCardRef} className="mt-20">
+        {/* Main Content Area - Upload Card or Collection Grid (show on mobile, or after start button pressed) */}
+        {(showMainContent || isMobile) && (
+          <div ref={uploadCardRef} className="mt-16 md:mt-20">
             {enrichedBooks.length === 0 ? (
               /* Upload Interface */
               <UploadCard
@@ -1257,15 +1292,15 @@ export function HomePage() {
           </div>
         )}
 
-        {/* Enhanced Processing Steps (only show after start button pressed) */}
-        {showMainContent && isUploading && (
-          <div className="w-full max-w-4xl mx-auto mt-12">
+        {/* Enhanced Processing Steps (show on mobile, or after start button pressed) */}
+        {(showMainContent || isMobile) && isUploading && (
+          <div className="w-full max-w-4xl mx-auto mt-8 md:mt-12">
             <Card className="relative overflow-hidden transition-all duration-700 bg-gradient-to-br from-card/95 via-card to-primary/10 border-2 border-primary/50 shadow-2xl shadow-primary/25 backdrop-blur-sm">
               {/* Enhanced background effects */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-400/5"></div>
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-blue-400 to-purple-400"></div>
 
-              <CardContent className="p-10 relative z-10">
+              <CardContent className="p-6 md:p-10 relative z-10">
                 <ProcessingSteps
                   stepState={stepState}
                   currentMessage={uploadProgress?.message}
@@ -1277,14 +1312,14 @@ export function HomePage() {
           </div>
         )}
 
-        {/* Camera Capture Modal - Lazy Loaded (only show after start button pressed) */}
-        {showMainContent && showCamera && (
+        {/* Camera Capture Modal - Lazy Loaded (show on mobile, or after start button pressed) */}
+        {(showMainContent || isMobile) && showCamera && (
           <Suspense fallback={
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-card p-6 rounded-lg shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                  <span className="text-foreground">Loading camera...</span>
+              <div className="bg-card p-4 md:p-6 rounded-lg shadow-lg mx-4">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 md:h-6 md:w-6 border-b-2 border-primary"></div>
+                  <span className="text-sm md:text-base text-foreground">Loading camera...</span>
                     </div>
                           </div>
                         </div>
@@ -1305,37 +1340,37 @@ export function HomePage() {
 
 
 
-        {/* AI Testing Section - Enhanced Design (only show after start button pressed) */}
-        {showMainContent && (!showAITesting ? (
-        <div ref={aiTestingRef} className="mt-24 w-full text-center relative">
+        {/* AI Testing Section - Enhanced Design (show on mobile, or after start button pressed) */}
+        {(showMainContent || isMobile) && (!showAITesting ? (
+        <div ref={aiTestingRef} className="mt-16 md:mt-24 w-full text-center relative">
           {/* Background decoration */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[600px] h-[400px] md:w-[800px] md:h-[600px] bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
           </div>
 
-          <div className="space-y-10 relative z-10">
-            <div className="space-y-6 max-w-6xl mx-auto px-6">
-              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-indigo-500/20 border border-primary/30 shadow-lg backdrop-blur-sm">
-                <Brain className="h-5 w-5 text-primary animate-pulse" />
-                <span className="text-base font-semibold text-primary">AI Testing Suite</span>
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+          <div className="space-y-8 md:space-y-10 relative z-10">
+            <div className="space-y-4 md:space-y-6 max-w-6xl mx-auto px-4 md:px-6">
+              <div className="inline-flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-3 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-indigo-500/20 border border-primary/30 shadow-lg backdrop-blur-sm">
+                <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary animate-pulse" />
+                <span className="text-sm md:text-base font-semibold text-primary">AI Testing Suite</span>
+                <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full animate-pulse"></div>
               </div>
 
-              <div className="space-y-4">
-                <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-foreground via-primary to-blue-400 bg-clip-text text-transparent leading-tight">
+              <div className="space-y-3 md:space-y-4">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-foreground via-primary to-blue-400 bg-clip-text text-transparent leading-tight">
                   Experience AI Vision Intelligence
                 </h2>
-                <p className="text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed font-light">
+                <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed font-light px-4">
                   No bookshelf ready? Test our models with sample datasets.
                   Each sample showcases different AI recognition capabilities and processing techniques.
                 </p>
               </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-6">
+            <div className="max-w-4xl mx-auto px-4 md:px-6">
               <Button
                 size="lg"
-                className="gap-3 px-10 py-5 text-lg font-semibold bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-600 hover:from-blue-600 hover:via-purple-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group"
+                className="gap-2 md:gap-3 px-6 md:px-10 py-3 md:py-5 text-base md:text-lg font-semibold bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-600 hover:from-blue-600 hover:via-purple-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group w-full max-w-sm md:w-auto"
                 onClick={() => {
                   setShowAITesting(true)
                   // Wait for DOM to update, then scroll to AI testing section
@@ -1344,19 +1379,19 @@ export function HomePage() {
                   }, 300)
                 }}
               >
-                <Zap className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
-                Load AI Testing Samples
+                <Zap className="h-5 w-5 md:h-6 md:w-6 group-hover:rotate-12 transition-transform duration-300" />
+                <span className="text-sm md:text-base">Load AI Testing Samples</span>
               </Button>
             </div>
           </div>
         </div>
         ) : (
-          <div ref={aiTestingRef} className="mt-20">
+          <div ref={aiTestingRef} className="mt-16 md:mt-20">
             <Suspense fallback={
               <div className="max-w-6xl mx-auto text-center">
-                <div className="flex items-center justify-center gap-3 py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="text-lg text-muted-foreground">Loading AI testing samples...</span>
+                <div className="flex items-center justify-center gap-3 py-8 md:py-12">
+                  <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-b-2 border-primary"></div>
+                  <span className="text-sm md:text-lg text-muted-foreground">Loading AI testing samples...</span>
             </div>
           </div>
             }>
@@ -1365,8 +1400,8 @@ export function HomePage() {
           </div>
         ))}
 
-        {/* Hidden file inputs (only show after start button pressed) */}
-        {showMainContent && (
+        {/* Hidden file inputs (show on mobile, or after start button pressed) */}
+        {(showMainContent || isMobile) && (
           <input
             ref={fileInputRef}
             type="file"

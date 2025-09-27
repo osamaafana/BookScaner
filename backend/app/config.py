@@ -13,10 +13,19 @@ class Settings(BaseSettings):
     METRICS_ENABLED: bool = True
     ALERT_WEBHOOK_URL: Optional[str] = None
     MAX_UPLOAD_MB: int = 10
+    MAX_IMAGE_DIMENSION: int = 4096  # Max width/height in pixels
+    MAX_IMAGE_DPI: int = 300  # Max DPI for security
+    MIN_IMAGE_DIMENSION: int = 100  # Min width/height in pixels
 
-    # CORS
+    # CORS - Security hardened
     CORS_ORIGINS: str = "http://localhost:5173"
     cors_origins_list: List[str] = []
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOWED_METHODS: str = "GET,POST,PUT,DELETE,OPTIONS"
+    CORS_ALLOWED_HEADERS: str = (
+        "Content-Type,Authorization,X-Device-Id,X-Requested-With"
+    )
+    CORS_MAX_AGE: int = 86400  # 24 hours
 
     # Database (compose defaults, fallback to localhost for dev)
     PG_HOST: str = "localhost"
@@ -61,13 +70,32 @@ class Settings(BaseSettings):
     @validator("cors_origins_list", pre=True, always=True)
     def _split_cors(cls, v, values):
         raw = values.get("CORS_ORIGINS", "")
-        return [o.strip() for o in raw.split(",") if o.strip()]
+        origins = [o.strip() for o in raw.split(",") if o.strip()]
+
+        # Security: Validate origin format
+        validated_origins = []
+        for origin in origins:
+            if origin.startswith(("http://", "https://")):
+                validated_origins.append(origin)
+            else:
+                # Log security warning for invalid origins
+                import logging
+
+                logging.warning(f"Invalid CORS origin format: {origin}")
+
+        return validated_origins
 
     @validator("POSTGRES_URL", pre=True, always=True)
     def _build_pg_url(cls, v, values):
         if v:
             # normalize to async driver if a sync URL was provided via env
             if v.startswith("postgresql://"):
+                # Convert sslmode parameter to asyncpg format
+                if "sslmode=require" in v:
+                    v = v.replace("?sslmode=require", "?ssl=require")
+                    v = v.replace("&sslmode=require", "&ssl=require")
+                if "channel_binding=require" in v:
+                    v = v.replace("&channel_binding=require", "")
                 return v.replace("postgresql://", "postgresql+asyncpg://", 1)
             return v
         user = values.get("PG_USER")

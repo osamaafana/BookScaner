@@ -14,13 +14,15 @@ from .routers import admin, books, history, preferences, recommend, scan
 def create_app() -> FastAPI:
     app = FastAPI(title="BookScanner API", version="0.2.0")
 
-    # CORS
+    # CORS - Security hardened
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_methods=settings.CORS_ALLOWED_METHODS.split(","),
+        allow_headers=settings.CORS_ALLOWED_HEADERS.split(","),
+        max_age=settings.CORS_MAX_AGE,
+        expose_headers=["X-Device-Id"],  # Allow frontend to read device ID
     )
 
     # Routers
@@ -48,7 +50,15 @@ def create_app() -> FastAPI:
         # Optional: Redis check
         try:
             r = get_redis()
-            await r.ping()
+            if hasattr(r, "ping"):
+                # Upstash Redis (synchronous)
+                r.ping()
+            elif hasattr(r, "get"):
+                # Upstash Redis - test with a simple get operation
+                r.get("health_check")
+            else:
+                # Traditional Redis (async)
+                await r.ping()
         except Exception as e:
             status["redis"] = f"error:{e.__class__.__name__}"
             ok = False

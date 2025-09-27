@@ -1,6 +1,8 @@
 // API Types for BookScanner
 // Centralized type definitions for all API responses and requests
 
+export type BookStatus = 'to_read' | 'reading' | 'finished'
+
 export interface ScanBook {
   bbox: unknown
   original_text?: string

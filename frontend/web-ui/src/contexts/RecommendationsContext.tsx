@@ -1,7 +1,7 @@
 // Recommendations Context for managing short-lived navigation data
 // Replaces localStorage usage for better data flow and performance
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import type { BookAnalysisResponse } from '../api/types'
 
 interface RecommendationsData {

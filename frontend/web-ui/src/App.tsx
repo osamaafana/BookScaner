@@ -6,9 +6,8 @@ import { RecommendationsPage } from './pages/RecommendationsPage'
 import { ReadingListPage } from './pages/ReadingListPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { PreferencesPage } from './pages/PreferencesPage'
 import { PreferencesModal } from './components/PreferencesModal'
-import { StorageProvider, useStorage } from './contexts/StorageContext'
+import { StorageProvider } from './contexts/StorageContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { RecommendationsProvider } from './contexts/RecommendationsContext'
@@ -17,7 +16,6 @@ import './styles/globals.css'
 
 function AppContent() {
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
-  const { preferences, updatePreferences } = useStorage()
 
   return (
     <>
@@ -29,7 +27,6 @@ function AppContent() {
             <Route path="/reading-list" element={<ReadingListPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/preferences" element={<PreferencesPage />} />
           </Routes>
         </AppShell>
         <ToastViewport />
@@ -37,8 +34,6 @@ function AppContent() {
       <PreferencesModal
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
-        preferences={preferences}
-        updatePreferences={updatePreferences}
       />
     </>
   )

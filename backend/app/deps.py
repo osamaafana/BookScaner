@@ -5,11 +5,11 @@ import re
 from typing import AsyncGenerator, Callable
 
 from fastapi import Depends, HTTPException, Request
-from redis.asyncio import from_url
 from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
                                     create_async_engine)
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_429_TOO_MANY_REQUESTS
 
+from .cache.redis import get_redis
 from .config import settings
 
 # --- DB session factory ---
@@ -20,14 +20,6 @@ _session_factory = async_sessionmaker(bind=_engine, expire_on_commit=False)
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with _session_factory() as session:
         yield session
-
-
-# --- Redis client singleton ---
-_redis = from_url(settings.REDIS_URL, decode_responses=True)
-
-
-def get_redis():
-    return _redis
 
 
 # --- Helpers ---
@@ -57,12 +49,35 @@ def device_id(req: Request) -> str:
 
 # --- Rate limit dependency ---
 async def _incr_with_ttl(r, key: str, expire: int) -> int:
-    # atomic-ish: set TTL on first increment
-    pipe = r.pipeline()
-    pipe.incr(key)
-    pipe.expire(key, expire)
-    res = await pipe.execute()
-    return int(res[0])
+    # Handle both Upstash Redis and traditional Redis
+    if hasattr(r, "incr"):
+        # Upstash Redis (synchronous)
+        try:
+            # Try to increment, if key doesn't exist, it will be created
+            count = r.incr(key)
+            if count == 1:  # First increment, set TTL
+                r.expire(key, expire)
+            return count
+        except Exception:
+            # Fallback: get current value and increment
+            current = r.get(key) or 0
+            count = int(current) + 1
+            r.set(key, count, ex=expire)
+            return count
+    else:
+        # Traditional Redis (async)
+        try:
+            pipe = r.pipeline()
+            pipe.incr(key)
+            pipe.expire(key, expire)
+            res = await pipe.execute()
+            return int(res[0])
+        except Exception:
+            # Fallback for async Redis
+            current = await r.get(key) or 0
+            count = int(current) + 1
+            await r.set(key, count, ex=expire)
+            return count
 
 
 def rate_limit_dep() -> Callable:

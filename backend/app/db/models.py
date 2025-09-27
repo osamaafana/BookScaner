@@ -17,6 +17,12 @@ class Device(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class BookStatusEnum(str, enum.Enum):
+    to_read = "to_read"
+    reading = "reading"
+    finished = "finished"
+
+
 class Book(Base):
     __tablename__ = "book"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -25,6 +31,11 @@ class Book(Base):
     author = Column(String, nullable=True)
     cover_url = Column(Text, nullable=True)
     fingerprint = Column(String, unique=True, nullable=False)
+    status = Column(
+        Enum(BookStatusEnum, name="book_status_enum"),
+        nullable=False,
+        default=BookStatusEnum.to_read,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
