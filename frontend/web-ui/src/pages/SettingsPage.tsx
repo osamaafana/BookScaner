@@ -89,11 +89,15 @@ export function SettingsPage() {
   const handleClearAllData = async () => {
     setIsResetting(true)
     try {
+      // Get the correct API Gateway URL (same logic as API client)
+      const envUrl = import.meta.env.VITE_GATEWAY_URL
+      const gatewayUrl = envUrl && envUrl.trim() !== '' ? envUrl : ''
+      
       // Call the device-specific flush endpoint to clear only this device's data
-      const response = await fetch('/api/admin/flush-device', {
+      const response = await fetch(`${gatewayUrl}/api/admin/flush-device`, {
         method: 'POST',
         headers: {
-          'admin_token': 'jVJukv2uoBqD7IzscJxpoophMmH9Hj',
+          'X-Admin-Token': 'jVJukv2uoBqD7IzscJxpoophMmH9Hj',
           'Content-Type': 'application/json'
         }
       })

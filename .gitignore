@@ -13,8 +13,6 @@ Thumbs.db
 # Env files (keep the example)
 # ─────────────────────────────
 .env
-.env.*
-!.env.example
 
 # ─────────────────────────────
 # Logs / caches

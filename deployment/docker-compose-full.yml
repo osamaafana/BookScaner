@@ -1,0 +1,59 @@
+services:
+  # Backend Service
+  backend:
+    build:
+      context: ../backend
+    env_file:
+      - ../.env
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    restart: unless-stopped
+    expose:
+      - "8000"
+    networks:
+      - app-network
+
+  # Backend Nginx Proxy
+  backend-nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Frontend Web UI
+  web-ui:
+    build:
+      context: ../frontend/web-ui
+      dockerfile: Dockerfile
+      args:
+        - VITE_GATEWAY_URL=http://91.98.136.8:3001
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Frontend Gateway
+  web-gateway:
+    build:
+      context: ../frontend/web-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - PORT=3001
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

@@ -106,7 +106,10 @@ class Settings(BaseSettings):
         return f"postgresql+asyncpg://{user}:{pwd}@{host}:{port}/{db}"
 
     class Config:
+        # Look for .env in project root (2 levels up from backend/app/)
         env_file = str(Path(__file__).resolve().parents[2] / ".env")
+        # Also allow environment variables to override
+        case_sensitive = True
 
 
 settings = Settings()

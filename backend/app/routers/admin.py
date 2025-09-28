@@ -25,7 +25,7 @@ def _guard(admin_token: str | None):
 
 
 @router.get("/metrics")
-async def metrics(admin_token: str | None = Header(None, convert_underscores=False)):
+async def metrics(admin_token: str | None = Header(None, alias="X-Admin-Token")):
     _guard(admin_token)
     blob = generate_latest()
     return Response(
@@ -41,7 +41,7 @@ async def metrics(admin_token: str | None = Header(None, convert_underscores=Fal
 
 @router.post("/daily-check")
 async def daily_check(
-    admin_token: str | None = Header(None, convert_underscores=False)
+    admin_token: str | None = Header(None, alias="X-Admin-Token")
 ):
     _guard(admin_token)
     groq_spend = await get_month_spend("groq")
@@ -80,7 +80,7 @@ async def flush_database_options():
 
 @router.post("/flush-db")
 async def flush_database(
-    admin_token: str | None = Header(None, convert_underscores=False)
+    admin_token: str | None = Header(None, alias="X-Admin-Token")
 ):
     """Flush database and cache - useful for testing and development"""
     _guard(admin_token)
@@ -152,7 +152,7 @@ async def flush_device_options():
 
 @router.post("/flush-device")
 async def flush_device_data(
-    admin_token: str | None = Header(None, convert_underscores=False),
+    admin_token: str | None = Header(None, alias="X-Admin-Token"),
     did: str = Depends(device_id),
 ):
     """Flush all data for a specific device - useful for user data deletion"""
@@ -244,7 +244,7 @@ async def flush_device_data(
 
 @router.post("/rotate-admin-token")
 async def rotate_admin_token(
-    admin_token: str | None = Header(None, convert_underscores=False),
+    admin_token: str | None = Header(None, alias="X-Admin-Token"),
 ):
     """Rotate the admin token (admin only)"""
     _guard(admin_token)

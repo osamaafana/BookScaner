@@ -7,6 +7,7 @@ import axios from "axios";
 import FormData from "form-data";
 import fileType from "file-type";
 import { createProxyMiddleware } from "http-proxy-middleware";
+import cors from "cors";
 
 import { deviceMiddleware } from "./middleware/device";
 import { burstLimiter } from "./middleware/burst";
@@ -24,6 +25,15 @@ const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const app = express();
 app.set("trust proxy", 1); // behind Vercel/NGINX/CDN
+
+// CORS configuration
+app.use(cors({
+  origin: ['http://91.98.136.8:3000', 'http://localhost:3000', 'http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Id', 'X-Requested-With', 'X-Admin-Token']
+}));
+
 // Enhanced security headers with Helmet
 app.use(helmet({
   contentSecurityPolicy: {
@@ -143,7 +153,7 @@ app.use("/api/admin", createProxyMiddleware({
   changeOrigin: true,
   selfHandleResponse: false,
   pathRewrite: (_path, req) => {
-    // /api/admin/foo -> /v1/admin/foo
+    // /api/admin/foo -> /v1/admin/foo (admin router has /v1/admin prefix)
     const rest = (req.url || "").replace(/^\/api\/admin\/?/, "");
     return `/v1/admin/${rest}`;
   },
@@ -152,6 +162,13 @@ app.use("/api/admin", createProxyMiddleware({
       // pass through device id
       const id = req.deviceId || "";
       proxyReq.setHeader("X-Device-Id", id);
+      
+      // pass through admin token
+      const adminToken = req.headers["x-admin-token"];
+      if (adminToken) {
+        proxyReq.setHeader("X-Admin-Token", adminToken);
+      }
+      
       // ensure JSON bodies are forwarded if present
       if (req.body && typeof req.body === "object") {
         const body = JSON.stringify(req.body);
@@ -181,6 +198,13 @@ app.use(
         // pass through device id
         const id = req.deviceId || "";
         proxyReq.setHeader("X-Device-Id", id);
+        
+        // pass through admin token
+        const adminToken = req.headers["x-admin-token"];
+        if (adminToken) {
+          proxyReq.setHeader("X-Admin-Token", adminToken);
+        }
+        
         // ensure JSON bodies are forwarded if present
         if (req.body && typeof req.body === "object") {
           const body = JSON.stringify(req.body);

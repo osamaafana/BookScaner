@@ -1,9 +1,0 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-# Run python pre-commit hooks (black, ruff, isort, etc.)
-if command -v pre-commit >/dev/null 2>&1; then
-  pre-commit run --hook-stage pre-commit
-else
-  python3 -m pre_commit run --hook-stage pre-commit
-fi

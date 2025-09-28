@@ -1,0 +1,21 @@
+services:
+  web-ui:
+    build:
+      context: ../frontend/web-ui
+      dockerfile: Dockerfile
+      args:
+        - VITE_GATEWAY_URL=http://91.98.136.8:3001
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  web-gateway:
+    build:
+      context: ../frontend/web-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - BACKEND_URL=http://91.98.136.8:8000
+      - PORT=3001
+    restart: unless-stopped

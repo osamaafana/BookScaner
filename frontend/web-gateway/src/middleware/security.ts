@@ -19,6 +19,11 @@ const BLOCKED_USER_AGENTS = [
   '', '-', 'none', 'unknown', 'mozilla/0.0',
 ];
 
+// Allowlist of legitimate browser patterns
+const ALLOWED_BROWSER_PATTERNS = [
+  'mozilla/5.0', 'webkit', 'chrome', 'safari', 'firefox', 'edge'
+];
+
 // Rate limiting for suspicious patterns
 const suspiciousIPs = new Map<string, { count: number; lastSeen: number }>();
 const SUSPICIOUS_THRESHOLD = 10; // requests per minute
@@ -27,6 +32,16 @@ const SUSPICIOUS_WINDOW = 60 * 1000; // 1 minute
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
   const userAgent = req.get('User-Agent') || '';
   const ip = req.ip || req.connection.remoteAddress || 'unknown';
+
+  // Check if it's a legitimate browser first
+  const isLegitimateBrowser = ALLOWED_BROWSER_PATTERNS.some(pattern =>
+    userAgent.toLowerCase().includes(pattern.toLowerCase())
+  );
+
+  // If it's a legitimate browser, allow it
+  if (isLegitimateBrowser) {
+    return next();
+  }
 
   // Check for blocked user agents
   const isBlocked = BLOCKED_USER_AGENTS.some(blocked =>
