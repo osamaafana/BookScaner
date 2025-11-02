@@ -8,6 +8,64 @@ Have you ever been at a book sale, library, or friend's house looking at shelves
 
 **Site:** https://book-scanner.net
 
+---
+
+## Cloud Architecture 
+
+BookScanner is built on a modern, scalable cloud architecture that ensures high performance and reliability:
+
+### **PostgreSQL Database on Neon**
+- **Production Database**: Fully deployed on [Neon](https://neon.tech) - a serverless PostgreSQL platform
+- **Purpose**: Stores all persistent data including:
+  - Book metadata and enriched information
+  - User preferences and reading lists
+  - Scan history and recommendations
+  - Device-based session data
+- **Benefits**: 
+  - Automatic scaling and backups
+  - Serverless architecture - no database management overhead
+  - Fast, global connections
+  - Zero-downtime maintenance
+
+### **Redis Cache on Upstash**
+- **Caching Layer**: Deployed on [Upstash](https://upstash.com) - serverless Redis for global edge caching
+- **Purpose**: High-performance caching for:
+  - Book scan results (30-day TTL)
+  - Book metadata (180-day TTL)
+  - Recommendation cache (7-day TTL)
+  - Rate limiting and session data
+- **Benefits**:
+  - Reduces API costs by 90%+ through intelligent caching
+  - Sub-millisecond response times
+  - Global edge distribution
+  - Automatic scaling and backup
+
+### **How They Work Together**
+
+```
+User Request
+    ↓
+React Frontend (Port 3000)
+    ↓
+Node.js API Gateway (Port 3001) → Rate Limiting & Security
+    ↓
+FastAPI Backend (Port 8000)
+    ↓
+├─→ Redis Cache (Upstash) → Fast cache hits for repeated requests
+│   └─→ If miss, continue ↓
+│
+└─→ PostgreSQL (Neon) → Persistent storage
+    └─→ If new data, cache in Redis for future requests
+```
+
+This architecture ensures:
+- ⚡ **Fast Response Times**: Redis provides instant cache hits
+- 💰 **Cost Efficiency**: Caching dramatically reduces expensive AI API calls
+- 🔄 **Reliability**: Neon provides automatic backups and failover
+- 📈 **Scalability**: Both services scale automatically with traffic
+- 🌍 **Global Performance**: Edge caching brings data closer to users
+
+---
 
 ## What It Does ?
 
