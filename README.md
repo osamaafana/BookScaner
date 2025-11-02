@@ -67,6 +67,33 @@ This architecture ensures:
 
 ---
 
+## 🤖 AI Engine & Fallback Mechanism
+
+### **Vision Model**
+- **Primary**: LLaMA 4 Scout via Groq (`meta-llama/llama-4-scout-17b-16e-instruct`)
+- **Fallback**: Google Vision API → NVIDIA NIM (`meta/llama-3.1-70b-instruct`)
+  - Google Vision extracts OCR text
+  - NVIDIA NIM structures text into book spines
+- **Flow**: Try Groq → if fails → Google Vision + NVIDIA NIM → cache result
+
+### **Recommendations**
+- **LLaMA 3.1 8B Instant via Groq** (`llama-3.1-8b-instant`)
+
+
+---
+
+## 🛠️ Technology Stack
+
+**Frontend**: React 18 + TypeScript, TailwindCSS, Vite, PWA
+
+**Backend**: FastAPI + Python 3.11+, SQLAlchemy, Alembic
+
+**Database**: PostgreSQL (Neon), Redis (Upstash)
+
+**Infrastructure**: Docker, Docker Compose, Nginx, Node.js API Gateway
+
+---
+
 ## What It Does ?
 
 ---
