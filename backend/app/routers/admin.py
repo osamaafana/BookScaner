@@ -5,7 +5,6 @@ from app.config import settings
 from app.db.session import async_engine
 from app.deps import device_id
 from app.security.secrets import secret_manager
-from app.services.cost_guard import get_month_spend
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -34,32 +33,6 @@ async def metrics(admin_token: str | None = Header(None, alias="X-Admin-Token"))
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "admin_token, content-type",
-        },
-    )
-
-
-@router.post("/daily-check")
-async def daily_check(
-    admin_token: str | None = Header(None, alias="X-Admin-Token")
-):
-    _guard(admin_token)
-    groq_spend = await get_month_spend("groq")
-    cap = float(getattr(settings, "GROQ_MONTHLY_USD_CAP", 10.0))
-    alerts: list[str] = []
-    if cap and groq_spend >= 0.8 * cap:
-        alerts.append(f"groq spend at {groq_spend:.2f} / {cap:.2f}")
-    # Stubs for error rate & cache hit (wire real metrics later)
-    return Response(
-        status_code=200,
-        content={
-            "ok": True,
-            "alerts": alerts,
-            "spend": {"groq": groq_spend, "cap": cap},
-        },
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers": "admin_token, content-type",
         },
     )

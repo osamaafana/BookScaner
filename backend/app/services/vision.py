@@ -9,9 +9,8 @@ from PIL import Image
 from ..adapters.google_vision import GoogleVisionAdapter
 from ..adapters.groq_vision import GroqVisionAdapter
 from ..cache.helpers import SCAN_TTL, cache_get, cache_set, scan_key
-from ..services.cost_guard import record_spend
 from ..services.metrics import (VisionMetrics, record_cache_hit,
-                                record_image_processing, record_vision_spend)
+                                record_image_processing)
 from ..services.types import SpineResult
 
 logger = logging.getLogger(__name__)
@@ -118,9 +117,6 @@ class VisionService:
 
                 provider_used = "groq"
                 logger.info("✅ Groq vision processing successful")
-                # Optional: derive cost estimate if you want, else record 0.0 and rely on Console limits
-                await record_spend("groq", 0.0)
-                record_vision_spend("groq", 0.0)
 
             except Exception as e:
                 logger.warning(
@@ -135,8 +131,6 @@ class VisionService:
 
                 provider_used = "gcv"
                 logger.info("✅ Google Cloud Vision processing successful")
-                await record_spend("gcv", 0.0)
-                record_vision_spend("gcv", 0.0)
         else:
             logger.info("Groq disabled, using Google Vision directly")
             # Groq is disabled, use Google Cloud Vision directly
@@ -148,8 +142,6 @@ class VisionService:
 
             provider_used = "gcv"
             logger.info("✅ Google Cloud Vision processing successful")
-            await record_spend("gcv", 0.0)
-            record_vision_spend("gcv", 0.0)
 
         # Log final result for observability
         spine_count = len(result.spines) if result.spines else 0

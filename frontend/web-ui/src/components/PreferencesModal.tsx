@@ -224,24 +224,31 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={handleBackdropClick}
+  className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm overscroll-contain"
+  onClick={handleBackdropClick}
+  style={{
+    // lift content above iOS Safari toolbars / notches
+    paddingTop: 'env(safe-area-inset-top)',
+    paddingBottom: 'env(safe-area-inset-bottom)',
+  }}
     >
       <div
-        ref={modalRef}
-        className="w-full max-w-md mx-2 sm:mx-4 bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl transform transition-transform duration-300 ease-out"
-        style={{
-          transform: `translateY(${dragOffset}px)`,
-          maxHeight: '95vh'
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="preferences-title"
-      >
+  ref={modalRef}
+  className="w-full max-w-md mx-2 sm:mx-4 bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl transform transition-transform duration-300 ease-out"
+  style={{
+    transform: `translateY(${dragOffset}px)`,
+    // use small-viewport height + safe-area so it never sits under the bar
+    maxHeight: 'calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom))',
+    WebkitOverflowScrolling: 'touch',
+  }}
+  onTouchStart={handleTouchStart}
+  onTouchMove={handleTouchMove}
+  onTouchEnd={handleTouchEnd}
+  tabIndex={-1}
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="preferences-title"
+>
         {/* Drag handle for mobile */}
         <div className="flex justify-center pt-2 pb-1 sm:hidden">
           <div className="w-8 h-1 bg-muted-foreground/30 rounded-full"></div>

@@ -37,7 +37,3 @@ def scan_key(image_hash: str, groq_enabled: bool = True) -> str:
 
 def meta_key(fingerprint: str) -> str:
     return f"meta:{fingerprint}"
-
-
-def recs_key(device_id: str, books_hash: str) -> str:
-    return f"recs:{device_id}:{books_hash}"

@@ -46,11 +46,6 @@ image_size_bytes = Histogram(
     ),
 )
 
-# Cost tracking
-vision_spend_usd_total = Counter(
-    "vision_spend_usd_total", "Total spend on vision APIs in USD", ["provider"]
-)
-
 
 class VisionMetrics:
     """Helper class to track vision processing metrics"""
@@ -85,8 +80,3 @@ def record_image_processing(action: str, size_bytes: int):
     """Record image processing action and size"""
     image_processing_total.labels(action=action).inc()
     image_size_bytes.observe(size_bytes)
-
-
-def record_vision_spend(provider: str, cost_usd: float):
-    """Record vision API spend"""
-    vision_spend_usd_total.labels(provider=provider).inc(cost_usd)

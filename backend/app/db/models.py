@@ -99,14 +99,3 @@ class Recommendation(Base):
     device = relationship("Device")
 
 
-class ProviderEnum(str, enum.Enum):
-    groq = "groq"
-    gcv = "gcv"
-
-
-class SpendLedger(Base):
-    __tablename__ = "spend_ledger"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    provider = Column(Enum(ProviderEnum, name="provider_enum"), nullable=False)
-    cost_usd = Column(Float, nullable=False)
-    at = Column(DateTime(timezone=True), server_default=func.now())

@@ -40,7 +40,6 @@ class Settings(BaseSettings):
 
     # Providers / models
     GROQ_API_KEY: str = ""
-    GROQ_MONTHLY_CAP_USD: float = 10.0
     GROQ_ENABLED: bool = True
     GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     OLLAMA_RECS_MODEL: str = "llama-3.1-8b-instant"

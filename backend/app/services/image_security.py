@@ -155,24 +155,3 @@ def validate_and_clean_image(
     logger.info(f"Image processed successfully: hash={image_hash}")
 
     return cleaned_bytes
-
-
-def get_image_info(image_bytes: bytes) -> dict:
-    """
-    Get basic image information for logging and validation.
-    Returns dict with image metadata.
-    """
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        return {
-            "format": img.format,
-            "mode": img.mode,
-            "size": img.size,
-            "width": img.width,
-            "height": img.height,
-            "has_transparency": img.mode in ("RGBA", "LA", "P"),
-            "file_size": len(image_bytes),
-        }
-    except Exception as e:
-        logger.error(f"Failed to get image info: {e}")
-        return {"error": str(e)}

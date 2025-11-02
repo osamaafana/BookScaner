@@ -59,22 +59,6 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "spend_ledger",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "provider", sa.Enum("groq", "gcv", name="provider_enum"), nullable=False
-        ),
-        sa.Column("cost_usd", sa.Float(), nullable=False),
-        sa.Column(
-            "at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=True,
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-
-    op.create_table(
         "history",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("device_id", sa.UUID(), nullable=False),
@@ -173,7 +157,6 @@ def downgrade() -> None:
     op.drop_table("scan")
     op.drop_table("preference")
     op.drop_table("history")
-    op.drop_table("spend_ledger")
     op.drop_table("book")
     op.drop_table("device")
     # ### end Alembic commands ###
