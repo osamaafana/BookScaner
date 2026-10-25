@@ -1,5 +1,5 @@
 import React, { memo, useState, useRef, useEffect } from 'react'
-import { Brain, BookOpen, Globe, X } from 'lucide-react'
+import { BookOpen, Globe, X, Loader2 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { cn } from '../lib/utils'
 import { api } from '../api/client'
@@ -224,9 +224,11 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
 
   return (
     <div
-  className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm overscroll-contain"
+  className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/50 overscroll-contain"
+  role="presentation"
   onClick={handleBackdropClick}
   style={{
+    zIndex: 'var(--z-modal)',
     // lift content above iOS Safari toolbars / notches
     paddingTop: 'env(safe-area-inset-top)',
     paddingBottom: 'env(safe-area-inset-bottom)',
@@ -234,7 +236,7 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
     >
       <div
   ref={modalRef}
-  className="w-full max-w-md mx-2 sm:mx-4 bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl transform transition-transform duration-300 ease-out"
+  className="w-full max-w-md mx-2 sm:mx-4 bg-card rounded-t-2xl sm:rounded-2xl shadow-xl transition-transform duration-200 ease-out"
   style={{
     transform: `translateY(${dragOffset}px)`,
     // use small-viewport height + safe-area so it never sits under the bar
@@ -259,26 +261,18 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-0 right-2 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-card/90 to-card/70 hover:from-primary/20 hover:to-blue-500/20 border-2 border-border/30 hover:border-primary/50 flex items-center justify-center transition-all duration-300 hover:scale-110 group shadow-lg hover:shadow-xl backdrop-blur-sm"
-            aria-label="Close preferences modal"
+            className="absolute top-0 right-2 sm:right-4 h-11 w-11 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            aria-label="Close"
           >
-            <X className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
 
-          <div className="text-center space-y-2 sm:space-y-3">
-            <div className="relative mx-auto w-12 h-12 sm:w-16 sm:h-16">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center border border-primary/30">
-                <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              </div>
-            </div>
-            <h2 id="preferences-title" className="text-lg sm:text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              {isLoading ? 'Loading Preferences...' : 'Setup Preferences'}
+          <div className="space-y-1 pr-12 pt-2">
+            <h2 id="preferences-title" className="text-lg font-semibold text-foreground">
+              Reading preferences
             </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground px-2">
-              {isLoading ? 'Loading your saved preferences...' :
-               (selectedGenres.length > 0 || selectedLanguages.length > 0) ?
-               'Your saved preferences are highlighted below' :
-               'Choose your preferences for better recommendations'}
+            <p className="text-sm text-muted-foreground">
+              {isLoading ? 'Loading your saved choices…' : 'Your picks are ranked against these. Change them any time.'}
             </p>
           </div>
         </div>
@@ -288,7 +282,7 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
           {isLoading ? (
             /* Loading State */
             <div className="flex flex-col items-center justify-center py-8 sm:py-12 space-y-3 sm:space-y-4">
-              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary"></div>
+              <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
               <p className="text-xs sm:text-sm text-muted-foreground text-center px-4">
                 Loading your saved preferences...
               </p>
@@ -297,8 +291,8 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
             <>
               {/* Genres Selection */}
               <div className="space-y-2 sm:space-y-3">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
-                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
                   Genres
                   {selectedGenres.length > 0 && (
                     <span className="text-xs bg-primary/10 text-primary px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -306,16 +300,18 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
                     </span>
                   )}
                 </h3>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap gap-2">
                   {availableGenres.map((genre) => (
                     <button
                       key={genre}
+                      type="button"
+                      aria-pressed={selectedGenres.includes(genre)}
                       onClick={() => toggleGenre(genre)}
                       className={cn(
-                        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs font-medium transition-all duration-200 relative touch-manipulation",
+                        "min-h-[40px] px-3.5 rounded-full border text-sm font-medium transition-colors touch-manipulation",
                         selectedGenres.includes(genre)
-                          ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
-                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50 active:bg-primary/10"
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border hover:border-primary/60 hover:bg-accent"
                       )}
                     >
                       {genre}
@@ -326,8 +322,8 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
 
               {/* Languages Selection */}
               <div className="space-y-2 sm:space-y-3">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" aria-hidden="true" />
                   Languages
                   {selectedLanguages.length > 0 && (
                     <span className="text-xs bg-primary/10 text-primary px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -335,21 +331,21 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
                     </span>
                   )}
                 </h3>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap gap-2">
                   {availableLanguages.map((language) => (
                     <button
                       key={language.code}
+                      type="button"
+                      aria-pressed={selectedLanguages.includes(language.code)}
                       onClick={() => toggleLanguage(language.code)}
                       className={cn(
-                        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs font-medium transition-all duration-200 flex items-center gap-1 relative touch-manipulation",
+                        "min-h-[40px] px-3.5 rounded-full border text-sm font-medium transition-colors touch-manipulation",
                         selectedLanguages.includes(language.code)
-                          ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
-                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50 active:bg-primary/10"
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border hover:border-primary/60 hover:bg-accent"
                       )}
                     >
-                      <span className="text-sm">{language.flag}</span>
-                      <span className="hidden sm:inline">{language.name}</span>
-                      <span className="sm:hidden">{language.code.toUpperCase()}</span>
+                      {language.name}
                     </button>
                   ))}
                 </div>
@@ -370,34 +366,17 @@ export const PreferencesModal = memo<PreferencesModalProps>(({
 
             <Button
               size="lg"
-              className="w-full gap-2 px-4 sm:px-6 py-2.5 sm:py-3 text-sm font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+              className="w-full"
               onClick={handleSubmit}
-              disabled={isLoading || selectedGenres.length === 0 || selectedLanguages.length === 0 || isSubmitting}
+              disabled={isLoading || selectedGenres.length === 0 || selectedLanguages.length === 0}
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span className="hidden sm:inline">Saving...</span>
-                  <span className="sm:hidden">Save</span>
-                </>
-              ) : isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span className="hidden sm:inline">Loading...</span>
-                  <span className="sm:hidden">Load</span>
-                </>
-              ) : (
-                <>
-                  <Brain className="h-4 w-4" />
-                  <span className="hidden sm:inline">Continue</span>
-                  <span className="sm:hidden">Done</span>
-                </>
-              )}
+              {isSubmitting ? 'Saving…' : 'Save preferences'}
             </Button>
 
             {selectedGenres.length === 0 || selectedLanguages.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center px-2">
-                Select at least one genre and one language to continue
+                Choose at least one genre and one language.
               </p>
             ) : null}
           </div>

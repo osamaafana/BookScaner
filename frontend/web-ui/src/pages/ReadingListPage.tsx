@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Search, BookOpen, Clock, CheckCircle, Calendar, Building, Hash, Sparkles } from 'lucide-react'
+import { BookOpen, Search, ScanLine } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
 import { useStorage } from '../contexts/StorageContext'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
@@ -66,21 +64,7 @@ export function ReadingListPage() {
     'finished': books.filter(b => b.status === 'finished').length
   }
 
-  const getStatusIcon = (status: BookStatus) => {
-    switch (status) {
-      case 'to_read': return <BookOpen className="h-4 w-4" />
-      case 'reading': return <Clock className="h-4 w-4" />
-      case 'finished': return <CheckCircle className="h-4 w-4" />
-    }
-  }
-
-  const getStatusColor = (status: BookStatus) => {
-    switch (status) {
-      case 'to_read': return 'default'
-      case 'reading': return 'warning'
-      case 'finished': return 'success'
-    }
-  }
+  const statusLabel = { all: 'All', to_read: 'To read', reading: 'Reading', finished: 'Finished' } as const
 
   const handleStatusChange = async (bookId: string, newStatus: BookStatus) => {
     setUpdatingStatus(prev => new Set(prev).add(bookId))
@@ -112,244 +96,122 @@ export function ReadingListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 md:py-8">
-        {/* Enhanced Header - Mobile Optimized */}
-        <div className="text-center space-y-3 sm:space-y-4 md:space-y-8 mb-6 sm:mb-8 md:mb-16 relative">
-          {/* Animated background elements - Hidden on very small screens */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none hidden sm:block">
-            <div className="absolute top-10 md:top-20 left-1/4 w-1 md:w-2 h-1 md:h-2 bg-purple-400/30 rounded-full animate-pulse"></div>
-            <div className="absolute top-16 md:top-32 right-1/3 w-0.5 md:w-1 h-0.5 md:h-1 bg-blue-400/40 rounded-full animate-ping"></div>
+    <div>
+      <div className="mx-auto w-full max-w-5xl">
+        <header className="mb-6 md:mb-8 space-y-1">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Library</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Books you saved, and where you are with each one.</p>
+        </header>
+
+        <div className="mb-5 flex flex-col gap-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              type="search"
+              aria-label="Search your library"
+              placeholder="Search by title or author"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-11 pl-10"
+            />
           </div>
 
-          <div className="space-y-2 sm:space-y-3 md:space-y-6 relative">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-black text-foreground leading-[0.9] tracking-tight">
-              <span className="block relative">
-                Reading List
-                <div className="absolute -bottom-0.5 sm:-bottom-1 md:-bottom-2 left-0 right-0 h-0.5 md:h-1 bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0 rounded-full"></div>
-              </span>
-            </h1>
-            <p className="text-xs sm:text-sm md:text-base text-muted-foreground max-w-2xl mx-auto px-2">
-              Manage your personal book collection
-            </p>
+          <div role="tablist" aria-label="Filter by status" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+            {(['all', 'to_read', 'reading', 'finished'] as const).map((status) => {
+              const active = selectedStatus === status
+              const count = status === 'all' ? books.length : statusCounts[status as BookStatus]
+              return (
+                <button
+                  key={status}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedStatus(status)}
+                  className={`flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors ${
+                    active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
+                  }`}
+                >
+                  {statusLabel[status]}
+                  <span className={`tabular-nums text-xs ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{count}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        {/* Stats - Mobile Optimized */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8">
-          {Object.entries(statusCounts).map(([status, count]) => (
-            <Card key={status} className="text-center border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm hover:shadow-md transition-shadow duration-200">
-              <CardContent className="pt-2 sm:pt-3 md:pt-4 pb-2 sm:pb-3">
-                <div className="flex items-center justify-center mb-1 sm:mb-2">
-                  <div className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5">
-                    {getStatusIcon(status as BookStatus)}
-                  </div>
-                </div>
-                <div className="text-base sm:text-lg md:text-2xl font-bold leading-none">{count}</div>
-                <div className="text-xs sm:text-xs md:text-sm text-muted-foreground capitalize leading-tight mt-1">
-                  {status.replace('_', ' ')}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Filters - Mobile Optimized */}
-        <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
-          {/* Search Input */}
-          <div className="w-full">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by title or author..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 focus:ring-2 focus:ring-primary/20 transition-all duration-200 h-10 sm:h-11"
-              />
+        {filteredBooks.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-4">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+              <BookOpen className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">
+                {searchQuery || selectedStatus !== 'all' ? 'Nothing matches' : 'Your library is empty'}
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-[42ch] mx-auto">
+                {searchQuery || selectedStatus !== 'all'
+                  ? 'Try another search or switch back to All.'
+                  : 'Scan a shelf and save the books you want to remember. They show up here.'}
+              </p>
             </div>
-          </div>
-
-          {/* Filter Buttons - Mobile Optimized */}
-          <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1">
-            {(['all', 'to_read', 'reading', 'finished'] as const).map((status) => (
-              <Button
-                key={status}
-                variant={selectedStatus === status ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedStatus(status)}
-                className="capitalize transition-all duration-200 hover:scale-105 whitespace-nowrap flex-shrink-0 text-xs sm:text-sm px-3 sm:px-4"
-              >
-                {status === 'all' ? 'All' : status.replace('_', ' ')}
-                {status !== 'all' && (
-                  <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5">
-                    {statusCounts[status as BookStatus]}
-                  </Badge>
-                )}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-      {/* Books Grid - Mobile Optimized */}
-      {filteredBooks.length === 0 ? (
-        <Card className="text-center py-8 sm:py-12">
-          <CardContent className="px-4 sm:px-6">
-            <BookOpen className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
-            <h3 className="text-lg sm:text-h5 mb-2">
-              {searchQuery || selectedStatus !== 'all' ? 'No books match your search' : 'Your reading list is empty'}
-            </h3>
-            <p className="text-sm sm:text-base text-muted-foreground mb-4 px-2">
-              {searchQuery || selectedStatus !== 'all'
-                ? 'Try adjusting your search terms or clearing the filters'
-                : 'Scan your bookshelf to start building your personal library'
-              }
-            </p>
             {!searchQuery && selectedStatus === 'all' && (
-              <Button
-                onClick={() => navigate('/')}
-                className="gap-2 bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm sm:text-base"
-              >
-                <Sparkles className="h-4 w-4" />
-                Start Scanning Books
+              <Button size="lg" onClick={() => navigate('/')}>
+                <ScanLine className="h-5 w-5" aria-hidden="true" />
+                Scan a shelf
               </Button>
             )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
-          {filteredBooks.map((book) => (
-            <Card key={book.id} className="group hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm cursor-pointer">
-              <CardHeader className="pb-1 sm:pb-3 px-2 sm:px-4 pt-2 sm:pt-4">
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-xs sm:text-sm md:text-base leading-tight mb-1 line-clamp-2">
-                    {book.title}
-                  </CardTitle>
-                  {book.author && (
-                    <p className="text-xs sm:text-xs md:text-sm text-muted-foreground line-clamp-1">
-                      by {book.author}
-                    </p>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="pt-0 space-y-1.5 sm:space-y-3 px-2 sm:px-4 pb-2 sm:pb-4">
-                {/* Book Cover - Mobile Optimized */}
-                <div className="aspect-[3/4] relative rounded-lg overflow-hidden bg-gradient-to-br from-purple-100 via-blue-100 to-primary/10 dark:from-purple-900/20 dark:via-blue-900/20 dark:to-primary/10">
+          </div>
+        ) : (
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
+            {filteredBooks.map((book) => (
+              <li key={book.id} className="flex flex-col">
+                <div className="aspect-[2/3] overflow-hidden rounded-md bg-muted shadow-sm">
                   {book.cover_url ? (
                     <img
                       src={book.cover_url}
-                      alt={book.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
                         target.src = '/placeholder-book.svg'
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 md:h-12 md:w-12 text-muted-foreground/50" />
+                    <div className="flex h-full items-center justify-center p-3 text-center">
+                      <span className="book-title text-sm text-muted-foreground line-clamp-4">{book.title}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Book Details - Mobile Optimized */}
-                <div className="space-y-1 sm:space-y-2">
-                  {(book.publisher || book.year) && (
-                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
-                      {book.publisher && (
-                        <>
-                          <Building className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                          <span className="truncate text-xs">{book.publisher}</span>
-                        </>
-                      )}
-                      {book.publisher && book.year && <span className="text-xs">•</span>}
-                      {book.year && (
-                        <>
-                          <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                          <span className="text-xs">{book.year}</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {book.isbn && (
-                    <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
-                      <Hash className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                      <span className="font-mono text-xs truncate">{book.isbn}</span>
-                    </div>
-                  )}
-
-                  {book.subjects && book.subjects.length > 0 && (
-                    <div className="flex flex-wrap gap-0.5 sm:gap-1">
-                      {book.subjects.slice(0, 1).map((subject, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs px-1 py-0.5">
-                          {subject}
-                        </Badge>
-                      ))}
-                      {book.subjects.length > 1 && (
-                        <Badge variant="secondary" className="text-xs px-1 py-0.5">
-                          +{book.subjects.length - 1}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+                <div className="mt-2 flex flex-1 flex-col gap-0.5">
+                  <h2 className="book-title text-sm leading-snug text-foreground line-clamp-2">{book.title}</h2>
+                  {book.author && <p className="text-xs text-muted-foreground line-clamp-1">{book.author}</p>}
+                  {book.year && <p className="text-xs text-muted-foreground">{book.year}</p>}
                 </div>
 
-                {/* Status and Date - Mobile Optimized */}
-                <div className="flex items-start justify-between gap-1 sm:gap-2">
-                  <div className="flex flex-col gap-0.5 sm:gap-1 min-w-0 flex-1">
-                    <Badge
-                      variant={getStatusColor(book.status)}
-                      className="text-xs cursor-pointer hover:opacity-80 transition-all duration-200 hover:scale-105 w-fit touch-manipulation"
-                      onClick={() => {
-                        const statuses: BookStatus[] = ['to_read', 'reading', 'finished']
-                        const currentIndex = statuses.indexOf(book.status)
-                        const nextIndex = (currentIndex + 1) % statuses.length
-                        handleStatusChange(book.id, statuses[nextIndex])
-                      }}
-                    >
-                      {updatingStatus.has(book.id) ? (
-                        <div className="animate-spin rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 border-b-2 border-current"></div>
-                      ) : (
-                        <div className="h-2.5 w-2.5 sm:h-3 sm:w-3">
-                          {getStatusIcon(book.status)}
-                        </div>
-                      )}
-                      <span className="ml-1 capitalize text-xs">
-                        {book.status.replace('_', ' ')}
-                      </span>
-                    </Badge>
-                    <span className="text-xs text-muted-foreground/70 leading-tight hidden sm:block">
-                      Tap to cycle
-                    </span>
-                  </div>
+                <label className="mt-2 block">
+                  <span className="sr-only">Reading status for {book.title}</span>
+                  <select
+                    value={book.status}
+                    disabled={updatingStatus.has(book.id)}
+                    onChange={(e) => handleStatusChange(book.id, e.target.value as BookStatus)}
+                    className="h-10 w-full rounded-lg border border-input bg-card px-2.5 text-sm text-foreground disabled:opacity-60"
+                  >
+                    <option value="to_read">To read</option>
+                    <option value="reading">Reading</option>
+                    <option value="finished">Finished</option>
+                  </select>
+                </label>
 
-                  <div className="text-xs text-muted-foreground text-right flex-shrink-0">
-                    <div className="leading-tight text-xs">Added</div>
-                    <div className="font-medium leading-tight text-xs">{book.addedAt.toLocaleDateString()}</div>
+                {book.status === 'reading' && book.progress ? (
+                  <div className="mt-2 h-1 w-full rounded-full bg-secondary" role="progressbar" aria-valuenow={book.progress} aria-valuemin={0} aria-valuemax={100} aria-label="Reading progress">
+                    <div className="h-1 rounded-full bg-primary" style={{ width: `${book.progress}%` }} />
                   </div>
-                </div>
-
-                {/* Progress Bar - Mobile Optimized */}
-                {book.status === 'reading' && book.progress && (
-                  <div className="mt-2 sm:mt-3">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Progress</span>
-                      <span>{book.progress}%</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-1.5 sm:h-2">
-                      <div
-                        className="bg-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${book.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

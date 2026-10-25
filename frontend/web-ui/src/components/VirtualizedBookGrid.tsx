@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useState, useEffect, useRef } from 'react'
-import { CardContent } from './ui/Card'
-import { BookOpen, CheckCircle } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface EnrichedBook {
@@ -94,12 +93,8 @@ const BookItem = memo(({
     <button
       ref={itemRef}
       className={cn(
-        "group relative overflow-hidden transition-all duration-300 hover:scale-105 h-full w-full text-left touch-manipulation",
-        "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg",
-        "transform-gpu will-change-transform",
-        book.selected
-          ? "border-green-500 bg-gradient-to-br from-green-500/20 to-blue-500/20 shadow-lg shadow-green-500/25"
-          : "border-border/50 hover:border-primary/50 bg-gradient-to-br from-card/80 to-muted/20"
+        'group relative h-full w-full rounded-lg border-2 p-1.5 text-left transition-colors touch-manipulation transform-gpu will-change-transform',
+        book.selected ? 'border-primary bg-accent' : 'border-transparent hover:bg-secondary'
       )}
       style={{
         transform: `translateX(${swipeOffset}px)`,
@@ -109,66 +104,41 @@ const BookItem = memo(({
       onTouchEnd={handleTouchEnd}
       onClick={handleClick}
       aria-pressed={book.selected}
-      aria-label={`${book.selected ? 'Deselect' : 'Select'} ${book.title}${book.author ? ` by ${book.author}` : ''}. Swipe to quickly toggle selection.`}
+      aria-label={`${book.title}${book.author ? ` by ${book.author}` : ''}`}
     >
-      <CardContent className="p-2 space-y-2 h-full flex flex-col">
-        {/* Swipe Indicator */}
-        {getSwipeIndicator()}
+      {getSwipeIndicator()}
 
-        {/* Book Cover */}
-        <div className="aspect-[3/4] relative rounded-lg overflow-hidden bg-muted/30 shadow-md flex-shrink-0">
-          <img
-            src={book.cover_url || '/placeholder-book.svg'}
-            alt={book.title}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-            onLoad={() => {
-              console.log('Cover image loaded successfully:', book.cover_url)
-            }}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement
-              console.error('Cover image failed to load:', book.cover_url, e)
-              target.src = '/placeholder-book.svg'
-            }}
-          />
+      <div className="relative aspect-[2/3] overflow-hidden rounded-md bg-muted shadow-sm">
+        <img
+          src={book.cover_url || '/placeholder-book.svg'}
+          alt=""
+          loading="lazy"
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement
+            target.src = '/placeholder-book.svg'
+          }}
+        />
+        <span
+          className={cn(
+            'absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors',
+            book.selected ? 'border-primary bg-primary text-primary-foreground' : 'border-white/90 bg-black/25 text-transparent'
+          )}
+          aria-hidden="true"
+        >
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+      </div>
 
-          {/* Selection Checkmark */}
-          {book.selected && (
-            <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 shadow-lg">
-              <CheckCircle className="h-4 w-4" />
-            </div>
-          )}
-        </div>
-
-        {/* Book Info */}
-        <div className="space-y-1 flex-1 flex flex-col">
-          <h3 className="font-bold text-sm text-foreground line-clamp-2 min-h-[2rem] leading-tight">
-            {book.title}
-          </h3>
-          {book.author && (
-            <p className="text-xs text-muted-foreground font-medium">
-              by {book.author}
-            </p>
-          )}
-          <div className="flex items-center justify-between">
-            {book.isbn && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <BookOpen className="h-2.5 w-2.5" />
-                <span className="text-xs">ISBN</span>
-              </div>
-            )}
-            {book.year && (
-              <div className="text-xs text-muted-foreground font-mono">
-                {book.year}
-              </div>
-            )}
-          </div>
-          {book.publisher && (
-            <div className="text-xs text-muted-foreground italic">
-              {book.publisher}
-            </div>
-          )}
-        </div>
-      </CardContent>
+      <div className="space-y-0.5 px-0.5 pt-2">
+        <h3 className="book-title text-sm leading-snug text-foreground line-clamp-2">{book.title}</h3>
+        {book.author && <p className="text-xs text-muted-foreground line-clamp-1">{book.author}</p>}
+        {(book.year || book.publisher) && (
+          <p className="text-xs text-muted-foreground line-clamp-1">
+            {[book.year, book.publisher].filter(Boolean).join(' · ')}
+          </p>
+        )}
+      </div>
     </button>
   )
 })
@@ -217,7 +187,7 @@ export const VirtualizedBookGrid: React.FC<VirtualizedBookGridProps> = ({
   if (books.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">No books detected</p>
+        <p className="text-muted-foreground">No spines could be read in this photo. Try again closer, straight on, with more light.</p>
       </div>
     )
   }

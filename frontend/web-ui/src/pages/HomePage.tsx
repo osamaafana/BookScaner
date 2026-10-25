@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useReducer, startTransition, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Zap, Brain, Loader2 } from 'lucide-react'
+import { Images, Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent } from '../components/ui/Card'
 import { useStorage } from '../contexts/StorageContext'
@@ -75,7 +75,6 @@ export function HomePage() {
 
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null)
   const [, setRetryIn] = useState<number | null>(null)
-  const [, setDetectedObjects] = useState<Array<{x: number, y: number, w: number, h: number, confidence: number}>>([])
   const [showCamera, setShowCamera] = useState(false)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraLoading, setCameraLoading] = useState(false)
@@ -83,8 +82,6 @@ export function HomePage() {
   const [showAITesting, setShowAITesting] = useState(false)
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showPreferencesMode, setShowPreferencesMode] = useState(false)
-  const [showMainContent, setShowMainContent] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const retryTimerRef = useRef<number | null>(null)
   const currentXHRRef = useRef<XMLHttpRequest | null>(null)
   const collectionCardRef = useRef<HTMLDivElement>(null)
@@ -127,23 +124,6 @@ export function HomePage() {
     }
   }, [selectedPreview, cameraStream])
 
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-
-    // Check on mount
-    checkMobile()
-
-    // Add resize listener
-    window.addEventListener('resize', checkMobile)
-
-    return () => {
-      window.removeEventListener('resize', checkMobile)
-    }
-  }, [])
-
   // Clean camera abort on visibility change (iOS Safari compatibility)
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -158,16 +138,6 @@ export function HomePage() {
   }, [cameraStream])
 
 
-  const simulateDetection = useCallback(() => {
-    // Simulate object detection for visual feedback
-    const fakeDetections = [
-      { x: 0.1, y: 0.2, w: 0.15, h: 0.6, confidence: 0.95 },
-      { x: 0.3, y: 0.15, w: 0.12, h: 0.7, confidence: 0.88 },
-      { x: 0.5, y: 0.25, w: 0.14, h: 0.55, confidence: 0.92 }
-    ]
-
-    setTimeout(() => setDetectedObjects(fakeDetections), 2000)
-  }, [])
 
 
   const scrollToCollection = useCallback(() => {
@@ -201,60 +171,21 @@ export function HomePage() {
     }, 200)
   }, [scrollToCollection])
 
-  // Handle start discovery process - check preferences first
-  const handleStartDiscovery = useCallback(() => {
-    // Don't proceed if database is still loading
-    if (isLoading) {
-      toast.info('Loading your preferences...')
-      return
+  // Bring the progress into view when a scan starts (e.g. from a sample far down the page)
+  const processingRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!isUploading) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    processingRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  }, [isUploading])
+
+  // First visit: ask for reading preferences inline before the first scan
+  useEffect(() => {
+    if (isLoading) return
+    if (preferences.genres.length === 0 || preferences.languages.length === 0) {
+      setShowPreferencesMode(true)
     }
-
-    // Show main content when start button is pressed
-    setShowMainContent(true)
-
-    const hasGenres = preferences.genres.length > 0
-    const hasLanguages = preferences.languages.length > 0
-
-    if (!hasGenres || !hasLanguages) {
-      // Check if mobile device to show modal, otherwise show inline mode
-      if (isMobile) {
-        setShowPreferencesModal(true)
-      } else {
-        setShowPreferencesMode(true)
-        // Wait for DOM to update after showing main content, then scroll to preferences card
-        setTimeout(() => {
-          if (uploadCardRef.current) {
-            // Calculate offset to position card perfectly in center
-            const elementTop = uploadCardRef.current.getBoundingClientRect().top
-            const offset = elementTop - (window.innerHeight / 2) + (uploadCardRef.current.offsetHeight / 2)
-
-            window.scrollBy({
-              top: offset,
-              behavior: 'smooth'
-            })
-
-            // Add a subtle highlight effect to the preferences card
-            const card = uploadCardInnerRef.current
-            if (card) {
-              card.style.transition = 'all 0.5s ease'
-              card.style.transform = 'scale(1.02)'
-              card.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(59, 130, 246, 0.5)'
-
-              setTimeout(() => {
-                card.style.transform = 'scale(1)'
-                card.style.boxShadow = ''
-              }, 1000)
-            }
-          }
-        }, 300) // Increased timeout to ensure DOM is updated
-      }
-    } else {
-      // Wait for DOM to update after showing main content, then scroll to upload card
-      setTimeout(() => {
-        scrollToUploadCard()
-      }, 300) // Increased timeout to ensure DOM is updated
-    }
-  }, [preferences, isLoading, toast])
+  }, [isLoading, preferences.genres.length, preferences.languages.length])
 
   // Handle preferences submission
   const handlePreferencesSubmit = useCallback(async (genres: string[], languages: string[]) => {
@@ -849,12 +780,11 @@ export function HomePage() {
     }
 
     setIsUploading(true)
-    setDetectedObjects([])
     setModelUsed('')
     setUploadProgress({
       stage: 'uploading',
       progress: 0,
-      message: 'Initializing AI processing...'
+      message: 'Preparing your photo…'
     })
 
     // Reset all steps and start optimizing
@@ -882,10 +812,9 @@ export function HomePage() {
         }
       }, 'image/jpeg', 0.9)
 
-      simulateDetection()
 
       // Step 1: Optimize
-      setUploadProgress(prev => prev ? { ...prev, message: 'Enhancing image quality...' } : null)
+      setUploadProgress(prev => prev ? { ...prev, message: 'Optimizing photo…' } : null)
       const processedBlob = await downscaleImageInWorker(processedFile, MAX_LONG_EDGE)
       // Removed artificial delay for faster processing
 
@@ -893,7 +822,7 @@ export function HomePage() {
       dispatchStep({ type: 'set', key: 'upload', val: 'active' })
 
       // Step 2: Upload
-      setUploadProgress(prev => prev ? { ...prev, message: 'Secure transfer to AI servers...' } : null)
+      setUploadProgress(prev => prev ? { ...prev, message: 'Uploading…' } : null)
       const scanResult = await uploadWithProgress(processedBlob, (pct) => {
         setUploadProgress(prev => prev ? { ...prev, progress: pct } : null)
       }) as ScanResult
@@ -974,15 +903,13 @@ export function HomePage() {
       // Complete the upload process
       dispatchStep({ type: 'set', key: 'enrich', val: 'done' })
 
-      const modelName = getModelLabel(scanResult.model_used)
-
       setUploadProgress({
         stage: 'complete',
         progress: 100,
-        message: `✨ Discovered ${enrichedBooks.length} book${enrichedBooks.length !== 1 ? 's' : ''} using ${modelName}!`
+        message: `Found ${enrichedBooks.length} book${enrichedBooks.length !== 1 ? 's' : ''}`
       })
 
-      toast.success(`AI successfully identified ${enrichedBooks.length} book${enrichedBooks.length !== 1 ? 's' : ''} using ${modelName}!`)
+      toast.success(`Found ${enrichedBooks.length} book${enrichedBooks.length !== 1 ? 's' : ''}`)
 
       try { (navigator as { vibrate?: (pattern: number[]) => void }).vibrate?.([50, 100, 50]) } catch {
         // Vibration not supported, ignore
@@ -992,7 +919,6 @@ export function HomePage() {
       setIsUploading(false)
       setTimeout(() => {
         setUploadProgress(null)
-        setDetectedObjects([])
       }, 3000)
 
     } catch (error) {
@@ -1023,7 +949,7 @@ export function HomePage() {
         } else {
           // Use server message if available, fallback to error message
           const errorMessage = error.serverMessage || error.message
-          toast.error(`AI processing failed: ${errorMessage}`)
+          toast.error(`Scan failed: ${errorMessage}`)
 
           // Log additional details for debugging
           if (error.details) {
@@ -1031,7 +957,7 @@ export function HomePage() {
           }
         }
       } else {
-        toast.error('AI processing failed. Please try again.')
+        toast.error('Scan failed. Check your connection and try again.')
       }
     }
   }
@@ -1136,7 +1062,7 @@ export function HomePage() {
       '/static/img/81uBUxgLS1L_2048x2048.webp'
     ]
     try {
-      toast.info(`Loading AI test sample: ${sample.name}`)
+      toast.info(`Scanning sample: ${sample.name}`)
       const resp = await fetch(sampleFiles[sample.index])
       if (!resp.ok) throw new Error('Sample not available')
       const blob = await resp.blob()
@@ -1147,91 +1073,20 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5" aria-busy={isUploading}>
-      {/* Subtle background pattern covering full viewport width */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 25% 25%, hsl(var(--primary)) 2px, transparent 2px),
-                             radial-gradient(circle at 75% 75%, hsl(var(--primary)) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-          backgroundPosition: '0 0, 30px 30px'
-        }}></div>
-      </div>
-
-      {/* Content with responsive padding */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-8 md:py-12 relative z-10">
-        {/* Hero Section - Advanced AI Interface */}
-        <div className="text-center space-y-8 md:space-y-12 mb-16 md:mb-20 relative">
-          {/* Enhanced animated background elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-20 left-1/4 w-2 h-2 md:w-3 md:h-3 bg-primary/40 rounded-full animate-pulse shadow-lg shadow-primary/50"></div>
-            <div className="absolute top-32 right-1/3 w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-400/50 rounded-full animate-ping shadow-lg shadow-blue-400/50"></div>
-            <div className="absolute bottom-40 left-1/3 w-1.5 h-1.5 md:w-2 md:h-2 bg-purple-400/40 rounded-full animate-pulse shadow-lg shadow-purple-400/50"></div>
-            <div className="absolute top-40 left-1/2 w-1 h-1 bg-cyan-400/60 rounded-full animate-bounce"></div>
-            <div className="absolute bottom-60 right-1/4 w-1 h-1 md:w-1.5 md:h-1.5 bg-indigo-400/50 rounded-full animate-pulse"></div>
-
-            {/* Gradient orbs */}
-            <div className="absolute top-1/4 left-1/4 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-r from-primary/10 to-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-1/3 right-1/4 w-32 h-32 md:w-40 md:h-40 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          </div>
-
-          <div className="space-y-6 md:space-y-8 relative z-10">
-            <div className="w-full max-w-none mx-0 px-0">
-              {/* Enhanced header with better typography */}
-              <div className="space-y-4 md:space-y-6">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-black text-foreground leading-[0.85] tracking-tight">
-                  <span className="block relative">
-                    Transform Your
-                    <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0 rounded-full"></div>
-                  </span>
-                  <span className="block bg-gradient-to-r from-primary via-blue-400 to-purple-500 bg-clip-text text-transparent animate-gradient bg-300% leading-tight">
-                    Library
-                  </span>
-                  <span className="block text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-light text-muted-foreground/90 mt-2 md:mt-4 leading-relaxed">
-                    with AI Intelligence
-                  </span>
-                </h1>
-
-                <div className="max-w-4xl md:max-w-5xl mx-auto space-y-3 md:space-y-4">
-                  <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground leading-relaxed font-light px-4">
-                    Our advanced Vision Models instantly recognize book spines, extract metadata, and enrich your collection
-                    with <span className="text-primary font-semibold px-1 md:px-2 py-0.5 md:py-1 rounded-md">High accuracy</span> in real-time.
-                  </p>
-
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-
-        {/* Start Discovery Process Button */}
-        <div className="flex flex-col items-center justify-center mt-12 md:mt-16 space-y-8 md:space-y-12">
-          <Button
-            size="lg"
-            disabled={isLoading}
-            className="gap-2 md:gap-3 px-8 md:px-12 py-4 md:py-6 text-base md:text-lg font-semibold bg-gradient-to-r from-primary via-blue-500 to-purple-600 hover:from-primary/90 hover:via-blue-500/90 hover:to-purple-600/90 shadow-lg hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group disabled:opacity-50 disabled:cursor-not-allowed w-full max-w-sm md:w-auto"
-            onClick={handleStartDiscovery}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-5 w-5 md:h-6 md:w-6 animate-spin" />
-                <span className="text-sm md:text-base">Loading Preferences...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 md:h-6 md:w-6 group-hover:rotate-12 transition-transform duration-300" />
-                <span className="text-sm md:text-base">Start Discovery Process</span>
-              </>
-            )}
-          </Button>
-
+    <div className="min-h-screen bg-background" aria-busy={isUploading}>
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 pt-8 pb-12 md:pt-14">
+        <div className="mb-6 md:mb-8 space-y-2">
+          <h1 className="text-[1.75rem] leading-tight md:text-4xl font-semibold tracking-tight text-foreground">
+            Which of these books would you enjoy?
+          </h1>
+          <p className="text-base md:text-lg text-muted-foreground max-w-[60ch]">
+            Take one photo of a shelf. BookScanner reads every spine, finds each book, and tells you which ones fit your taste.
+          </p>
         </div>
 
         {/* Main Content Area - Upload Card or Collection Grid (show on mobile, or after start button pressed) */}
-        {(showMainContent || isMobile) && (
-          <div ref={uploadCardRef} className="mt-16 md:mt-20">
+        {(
+          <div ref={uploadCardRef}>
             {enrichedBooks.length === 0 ? (
               /* Upload Interface */
               <UploadCard
@@ -1263,7 +1118,6 @@ export function HomePage() {
                   onDeselectAll={deselectAllBooks}
                 onScanAnother={() => {
                     setEnrichedBooks([])
-                    setShowMainContent(false)
                     setShowPreferencesModal(false)
                     setShowPreferencesMode(false)
                     setShowAITesting(false)
@@ -1274,7 +1128,6 @@ export function HomePage() {
                     setSelectedPreview(null)
                     setUploadProgress(null)
                     setIsUploading(false)
-                    setDetectedObjects([])
                     setModelUsed('')
                   dispatchStep({ type: 'reset' })
 
@@ -1293,14 +1146,10 @@ export function HomePage() {
         )}
 
         {/* Enhanced Processing Steps (show on mobile, or after start button pressed) */}
-        {(showMainContent || isMobile) && isUploading && (
-          <div className="w-full max-w-4xl mx-auto mt-8 md:mt-12">
-            <Card className="relative overflow-hidden transition-all duration-700 bg-gradient-to-br from-card/95 via-card to-primary/10 border-2 border-primary/50 shadow-2xl shadow-primary/25 backdrop-blur-sm">
-              {/* Enhanced background effects */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-400/5"></div>
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-blue-400 to-purple-400"></div>
-
-              <CardContent className="p-6 md:p-10 relative z-10">
+        {isUploading && (
+          <div ref={processingRef} className="w-full mt-6 scroll-mt-20">
+            <Card>
+              <CardContent className="p-5 md:p-8">
                 <ProcessingSteps
                   stepState={stepState}
                   currentMessage={uploadProgress?.message}
@@ -1313,13 +1162,13 @@ export function HomePage() {
         )}
 
         {/* Camera Capture Modal - Lazy Loaded (show on mobile, or after start button pressed) */}
-        {(showMainContent || isMobile) && showCamera && (
+        {showCamera && (
           <Suspense fallback={
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <div className="bg-card p-4 md:p-6 rounded-lg shadow-lg mx-4">
                 <div className="flex items-center gap-2 md:gap-3">
-                  <div className="animate-spin rounded-full h-5 w-5 md:h-6 md:w-6 border-b-2 border-primary"></div>
-                  <span className="text-sm md:text-base text-foreground">Loading camera...</span>
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
+                  <span className="text-sm md:text-base text-foreground">Starting camera…</span>
                     </div>
                           </div>
                         </div>
@@ -1341,57 +1190,33 @@ export function HomePage() {
 
 
         {/* AI Testing Section - Enhanced Design (show on mobile, or after start button pressed) */}
-        {(showMainContent || isMobile) && (!showAITesting ? (
-        <div ref={aiTestingRef} className="mt-16 md:mt-24 w-full text-center relative">
-          {/* Background decoration */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[600px] h-[400px] md:w-[800px] md:h-[600px] bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
+        {(!showAITesting ? (
+        <div ref={aiTestingRef} className="mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-secondary/60 p-4 md:p-5">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">No shelf nearby?</h2>
+            <p className="text-sm text-muted-foreground">Try a sample photo to see how scanning works.</p>
           </div>
-
-          <div className="space-y-8 md:space-y-10 relative z-10">
-            <div className="space-y-4 md:space-y-6 max-w-6xl mx-auto px-4 md:px-6">
-              <div className="inline-flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2 md:py-3 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-indigo-500/20 border border-primary/30 shadow-lg backdrop-blur-sm">
-                <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary animate-pulse" />
-                <span className="text-sm md:text-base font-semibold text-primary">AI Testing Suite</span>
-                <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full animate-pulse"></div>
-              </div>
-
-              <div className="space-y-3 md:space-y-4">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-foreground via-primary to-blue-400 bg-clip-text text-transparent leading-tight">
-                  Experience AI Vision Intelligence
-                </h2>
-                <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed font-light px-4">
-                  No bookshelf ready? Test our models with sample datasets.
-                  Each sample showcases different AI recognition capabilities and processing techniques.
-                </p>
-              </div>
-            </div>
-
-            <div className="max-w-4xl mx-auto px-4 md:px-6">
-              <Button
-                size="lg"
-                className="gap-2 md:gap-3 px-6 md:px-10 py-3 md:py-5 text-base md:text-lg font-semibold bg-gradient-to-r from-blue-500 via-purple-600 to-indigo-600 hover:from-blue-600 hover:via-purple-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:shadow-primary/25 hover:scale-105 transition-all duration-500 group w-full max-w-sm md:w-auto"
-                onClick={() => {
-                  setShowAITesting(true)
-                  // Wait for DOM to update, then scroll to AI testing section
-                  setTimeout(() => {
-                    scrollToAITesting()
-                  }, 300)
-                }}
-              >
-                <Zap className="h-5 w-5 md:h-6 md:w-6 group-hover:rotate-12 transition-transform duration-300" />
-                <span className="text-sm md:text-base">Load AI Testing Samples</span>
-              </Button>
-            </div>
-          </div>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto shrink-0"
+            onClick={() => {
+              setShowAITesting(true)
+              setTimeout(() => {
+                scrollToAITesting()
+              }, 300)
+            }}
+          >
+            <Images className="h-4 w-4" aria-hidden="true" />
+            Try a sample
+          </Button>
         </div>
         ) : (
-          <div ref={aiTestingRef} className="mt-16 md:mt-20">
+          <div ref={aiTestingRef} className="mt-8">
             <Suspense fallback={
               <div className="max-w-6xl mx-auto text-center">
                 <div className="flex items-center justify-center gap-3 py-8 md:py-12">
-                  <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-b-2 border-primary"></div>
-                  <span className="text-sm md:text-lg text-muted-foreground">Loading AI testing samples...</span>
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
+                  <span className="text-sm md:text-lg text-muted-foreground">Loading samples…</span>
             </div>
           </div>
             }>
@@ -1401,7 +1226,7 @@ export function HomePage() {
         ))}
 
         {/* Hidden file inputs (show on mobile, or after start button pressed) */}
-        {(showMainContent || isMobile) && (
+        {(
           <input
             ref={fileInputRef}
             type="file"

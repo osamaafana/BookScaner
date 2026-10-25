@@ -1,7 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react'
-import { Camera, X } from 'lucide-react'
+import { X, Loader2 } from 'lucide-react'
 import { Button } from './ui/Button'
-import { Card, CardContent } from './ui/Card'
 
 interface CameraModalProps {
   showCamera: boolean
@@ -93,109 +92,78 @@ export const CameraModal = memo<CameraModalProps>(({
   return (
     <div
       ref={modalRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-black sm:bg-black/80 sm:p-4"
+      style={{ zIndex: 'var(--z-modal)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="camera-modal-title"
       aria-describedby="camera-modal-description"
     >
-      <div className="relative w-full max-w-4xl mx-4">
-        <Card className="border border-primary/20 bg-gradient-to-br from-card/90 to-primary/10 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <h3 id="camera-modal-title" className="text-xl font-bold text-foreground">Camera Capture</h3>
-                <Button
-                  ref={closeButtonRef}
-                  variant="outline"
-                  size="sm"
-                  onClick={onStopCamera}
-                  className="border-red-500/50 text-red-500 hover:bg-red-500/10"
-                  aria-label="Close camera modal"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Close
-                </Button>
-              </div>
+      <div className="relative flex h-full w-full max-w-3xl flex-col bg-black sm:h-auto sm:overflow-hidden sm:rounded-2xl">
+        <div className="flex items-center justify-between px-4 py-3 text-white safe-area-inset-top">
+          <h2 id="camera-modal-title" className="text-base font-semibold">Take a photo</h2>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onStopCamera}
+            className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10"
+            aria-label="Close camera"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
 
-              {/* Description for screen readers */}
-              <div id="camera-modal-description" className="sr-only">
-                Use your camera to capture an image of your bookshelf. Position your books within the frame and click capture when ready.
-              </div>
+        <p id="camera-modal-description" className="sr-only">
+          Point your camera at the bookshelf so the spines fill the frame, then press the shutter button.
+        </p>
 
-              {/* Camera Preview */}
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-auto max-h-[60vh] rounded-lg bg-black"
-                  style={{ minHeight: '300px' }}
-                />
-                <canvas
-                  ref={canvasRef}
-                  className="hidden"
-                />
+        <div className="relative flex-1 sm:flex-none">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="h-full w-full object-cover sm:h-auto sm:max-h-[65vh]"
+            style={{ minHeight: '300px' }}
+          />
+          <canvas ref={canvasRef} className="hidden" />
 
-                {/* Loading overlay */}
-                {cameraLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-                    <div className="text-center text-white">
-                      <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                      <div className="text-sm">Loading camera...</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Error overlay */}
-                {cameraError && !cameraLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-                    <div className="text-center text-white p-4">
-                      <div className="text-red-400 mb-2">⚠️</div>
-                      <div className="text-sm mb-4">{cameraError}</div>
-                      <Button
-                        size="sm"
-                        onClick={onStartCamera}
-                        className="bg-primary hover:bg-primary/90"
-                      >
-                        Retry Camera
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Capture overlay */}
-                {!cameraLoading && !cameraError && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute inset-4 border-2 border-white/50 rounded-lg"></div>
-                    <div className="absolute top-4 left-4 right-4 text-center">
-                      <div className="inline-block px-3 py-1 bg-black/70 text-white text-sm rounded-full backdrop-blur-sm">
-                        Position your bookshelf within the frame
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Capture Button */}
-              <div className="flex justify-center">
-                <Button
-                  ref={captureButtonRef}
-                  size="lg"
-                  onClick={onCaptureFromCamera}
-                  disabled={cameraLoading || !!cameraError}
-                  className="gap-3 px-8 py-4 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-lg hover:shadow-xl disabled:opacity-50"
-                  aria-label={cameraLoading ? 'Loading camera, please wait' : cameraError ? 'Camera error occurred' : 'Capture image from camera'}
-                >
-                  <Camera className="h-6 w-6" />
-                  {cameraLoading ? 'Loading Camera...' : cameraError ? 'Camera Error' : 'Capture Image'}
-                </Button>
-              </div>
+          {cameraLoading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white">
+              <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
+              <span className="text-sm">Starting camera…</span>
             </div>
-          </CardContent>
-        </Card>
+          )}
+
+          {cameraError && !cameraLoading && (
+            <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center text-white">
+              <p className="text-sm max-w-[36ch]">{cameraError}</p>
+              <Button size="md" onClick={onStartCamera}>Try again</Button>
+            </div>
+          )}
+
+          {!cameraLoading && !cameraError && (
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-5 rounded-xl border-2 border-white/60" />
+              <p className="absolute inset-x-0 bottom-8 text-center">
+                <span className="rounded-full bg-black/60 px-3 py-1 text-sm text-white">Fit the spines inside the frame</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-center py-5 safe-area-inset-bottom">
+          <button
+            ref={captureButtonRef}
+            type="button"
+            onClick={onCaptureFromCamera}
+            disabled={cameraLoading || !!cameraError}
+            className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-4 border-white transition-transform active:scale-95 disabled:opacity-40"
+            aria-label={cameraLoading ? 'Camera is starting' : 'Take photo'}
+          >
+            <span className="h-[56px] w-[56px] rounded-full bg-white" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react'
-import { Upload, Brain, Zap, Camera, Settings, BookOpen, Globe } from 'lucide-react'
+import { Camera, BookOpen, Globe, ScanLine, ImageUp, ArrowRight } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
 import { cn } from '../lib/utils'
@@ -89,196 +89,136 @@ export const UploadCard = memo<UploadCardProps>(({
     }
   }
 
+  const chipClass = (selected: boolean) =>
+    cn(
+      'min-h-[40px] px-3.5 rounded-full border text-sm font-medium transition-colors',
+      selected
+        ? 'bg-primary text-primary-foreground border-primary'
+        : 'bg-card border-border text-foreground hover:border-primary/60 hover:bg-accent'
+    )
+
   return (
     <div className="w-full mx-auto">
       <Card
         ref={cardRef}
         className={cn(
-          "relative overflow-hidden transition-all duration-700",
-          showPreferencesMode
-            ? "bg-gradient-to-br from-card/95 via-card to-primary/5 border-primary/30"
-            : "bg-gradient-to-br from-card/90 via-card to-primary/10 border-2 backdrop-blur-sm",
-          dragOver
-            ? "border-primary bg-gradient-to-br from-primary/20 to-blue-500/20 scale-[1.02] shadow-2xl shadow-primary/25"
-            : showPreferencesMode
-              ? "border-primary/30 hover:border-primary/60"
-              : "border-border/50 hover:border-primary/60 hover:shadow-xl",
-          isUploading && "border-primary shadow-2xl shadow-primary/30"
+          'relative overflow-hidden transition-colors',
+          !showPreferencesMode && 'border-2 border-dashed',
+          dragOver ? 'border-primary bg-accent' : 'border-border'
         )}
       >
-        {/* Animated border effect */}
-        {(dragOver || isUploading) && (
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary via-blue-500 to-purple-500 p-[2px]">
-            <div className="w-full h-full rounded-lg bg-card"></div>
-          </div>
-        )}
-
-        <CardContent className="p-6 relative z-10">
+        <CardContent className="p-6 md:p-8">
           {showPreferencesMode ? (
-            // Compact Preferences Selection Mode
             <div className="space-y-6">
-              {/* Compact Header */}
-              <div className="text-center space-y-2">
-                <div className="relative mx-auto w-16 h-16">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center border border-primary/30">
-                    <Settings className="h-8 w-8 text-primary" />
-                  </div>
-                </div>
-                <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                  Setup Preferences
-                </h2>
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold text-foreground">What do you like to read?</h2>
                 <p className="text-sm text-muted-foreground">
-                  Choose your preferences for better recommendations
+                  Pick a few genres and languages so your picks match your taste. You can change this later.
                 </p>
               </div>
 
-              {/* Compact Genres Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-primary" />
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                  <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
                   Genres
-                </h3>
+                </legend>
                 <div className="flex flex-wrap gap-2">
                   {availableGenres.map((genre) => (
                     <button
                       key={genre}
+                      type="button"
+                      aria-pressed={selectedGenres.includes(genre)}
                       onClick={() => toggleGenre(genre)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200",
-                        selectedGenres.includes(genre)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50"
-                      )}
+                      className={chipClass(selectedGenres.includes(genre))}
                     >
                       {genre}
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
-              {/* Compact Languages Selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-primary" />
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                  <Globe className="h-4 w-4 text-primary" aria-hidden="true" />
                   Languages
-                </h3>
+                </legend>
                 <div className="flex flex-wrap gap-2">
                   {availableLanguages.map((language) => (
                     <button
                       key={language.code}
+                      type="button"
+                      aria-pressed={selectedLanguages.includes(language.code)}
                       onClick={() => toggleLanguage(language.code)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 flex items-center gap-1",
-                        selectedLanguages.includes(language.code)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card/50 border-border hover:bg-card hover:border-primary/50"
-                      )}
+                      className={chipClass(selectedLanguages.includes(language.code))}
                     >
-                      <span>{language.flag}</span>
                       {language.name}
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
-              {/* Compact Submit Button */}
-              <div className="space-y-2 pt-2">
-                <div className="flex justify-center">
-                  <Button
-                    size="md"
-                    className="gap-2 px-6 py-2 text-sm font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md hover:shadow-lg transition-all duration-300"
-                    onClick={handlePreferencesSubmit}
-                    disabled={selectedGenres.length === 0 || selectedLanguages.length === 0}
-                  >
-                    <Brain className="h-4 w-4" />
-                    Continue
-                  </Button>
-                </div>
-                {selectedGenres.length === 0 || selectedLanguages.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Select at least one genre and one language to continue
-                  </p>
-                ) : null}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  onClick={handlePreferencesSubmit}
+                  disabled={selectedGenres.length === 0 || selectedLanguages.length === 0}
+                >
+                  Continue
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                {(selectedGenres.length === 0 || selectedLanguages.length === 0) && (
+                  <p className="text-sm text-muted-foreground">Choose at least one genre and one language.</p>
+                )}
               </div>
             </div>
           ) : (
-            // Upload Interface Mode
             <div
-              className="text-center cursor-pointer group"
+              className="text-center cursor-pointer rounded-xl"
               onDrop={onDrop}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onClick={onFileSelect}
               role="button"
               tabIndex={0}
+              aria-label="Choose a photo of a bookshelf"
               onKeyDown={onKeyDown}
             >
-              <div className="space-y-6">
-                {/* Enhanced Upload Icon */}
-                <div className="relative mx-auto w-24 h-24">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/30 to-blue-500/20 animate-pulse"></div>
-                  <div className="absolute inset-2 rounded-full bg-gradient-to-br from-primary/10 to-transparent"></div>
-                  <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center border-2 border-primary/30 group-hover:scale-110 transition-all duration-500">
-                    <div className="relative">
-                      <Upload className="h-12 w-12 text-primary group-hover:text-blue-400 transition-colors" />
-                      <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center opacity-80">
-                        <Brain className="h-2.5 w-2.5 text-white animate-pulse" />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Floating particles */}
-                  <div className="absolute top-8 right-4 w-2 h-2 bg-blue-400/60 rounded-full animate-bounce"></div>
-                  <div className="absolute bottom-8 left-4 w-1.5 h-1.5 bg-purple-400/60 rounded-full animate-ping"></div>
+              <div className="flex flex-col items-center gap-5 py-4">
+                <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                  <ScanLine className="h-8 w-8" aria-hidden="true" />
+                </span>
+
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold text-foreground">Photograph a shelf</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Get the spines in frame, straight on, in good light.
+                    <span className="hidden md:inline"> Or drop an image here.</span>
+                  </p>
                 </div>
 
-                {/* Enhanced Text */}
-                <div className="space-y-3">
-                  <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                    Upload Your Bookshelf Image
-                  </h2>
-                </div>
-
-                {/* Enhanced Action Buttons */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Button
-                    size="md"
-                    className="gap-2 px-6 py-3 text-sm font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300"
-                    onClick={(e) => { e.stopPropagation(); onFileSelect() }}
-                  >
-                    <Upload className="h-4 w-4" />
-                    AI Scanner
-                  </Button>
+                <div className="flex w-full flex-col sm:w-auto sm:flex-row items-stretch justify-center gap-3">
                   <Button
                     ref={cameraButtonRef}
-                    variant="outline"
-                    size="md"
-                    className="gap-2 px-6 py-3 text-sm font-semibold border-2 border-primary/40 hover:border-primary hover:bg-primary/10 hover:scale-105 transition-all duration-300"
+                    size="lg"
+                    className="w-full sm:w-auto"
                     onClick={(e) => { e.stopPropagation(); onStartCamera() }}
                   >
-                    <Camera className="h-4 w-4" />
-                    Live Capture
+                    <Camera className="h-5 w-5" aria-hidden="true" />
+                    Take photo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                    onClick={(e) => { e.stopPropagation(); onFileSelect() }}
+                  >
+                    <ImageUp className="h-5 w-5" aria-hidden="true" />
+                    Upload image
                   </Button>
                 </div>
 
-                {/* Compact File Info */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                      <span>JPG, PNG, WebP</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <Zap className="h-3 w-3 text-blue-400" />
-                      <span>Auto-optimize</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <Brain className="h-3 w-3 text-purple-400" />
-                      <span>AI Powered</span>
-                    </div>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground">JPG, PNG, WebP or HEIC. Large photos are resized on your device.</p>
               </div>
             </div>
           )}

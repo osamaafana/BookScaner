@@ -6,34 +6,35 @@ export function ToastViewport() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] md:bottom-6 flex flex-col items-center gap-2 px-4"
+      style={{ zIndex: 'var(--z-toast)' }}
       role="region"
       aria-live="polite"
     >
       {toasts.map(t => (
         <div
           key={t.id}
-          className={`w-full max-w-sm rounded-xl border shadow-md backdrop-blur bg-white/90 px-4 py-3 flex items-start gap-3 ${
-            t.variant === 'success' ? 'border-green-200' :
-            t.variant === 'error' ? 'border-red-200' :
-            t.variant === 'warning' ? 'border-yellow-200' : 'border-slate-200'
+          className={`w-full max-w-sm pointer-events-auto rounded-xl border shadow-lg bg-popover text-popover-foreground px-4 py-3 flex items-start gap-3 ${
+            t.variant === 'success' ? 'border-success' :
+            t.variant === 'error' ? 'border-destructive' :
+            t.variant === 'warning' ? 'border-warning' : 'border-border'
           }`}
         >
           <div className={`mt-1 h-2 w-2 rounded-full ${
-            t.variant === 'success' ? 'bg-green-500' :
-            t.variant === 'error' ? 'bg-red-500' :
-            t.variant === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            t.variant === 'success' ? 'bg-success' :
+            t.variant === 'error' ? 'bg-destructive' :
+            t.variant === 'warning' ? 'bg-warning' : 'bg-primary'
           }`} />
           <div className="flex-1 min-w-0">
-            {t.title && <div className="font-semibold text-slate-800 truncate">{t.title}</div>}
-            {t.description && <div className="text-sm text-slate-600 break-words">{t.description}</div>}
+            {t.title && <div className="font-semibold text-foreground truncate">{t.title}</div>}
+            {t.description && <div className="text-sm text-muted-foreground break-words">{t.description}</div>}
           </div>
           <button
             aria-label="Dismiss"
-            className="p-1 rounded-md text-slate-500 hover:bg-slate-100"
+            className="-m-1 p-2 rounded-md text-muted-foreground hover:bg-secondary"
             onClick={() => dismiss(t.id)}
           >
-            <X size={16} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       ))}

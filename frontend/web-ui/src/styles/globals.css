@@ -1,41 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ==========================================
-   Design System - Premium BookScanner
+   Design System - BookScanner (calm, bookish; see DESIGN.md)
    ========================================== */
 
 :root {
   /* Colors - Light Theme */
-  --background: 0 0% 98%;
-  --foreground: 215 25% 15%;
+  --background: 150 12% 98%;
+  --foreground: 160 22% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 215 25% 15%;
+  --card-foreground: 160 22% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 215 25% 15%;
-  --primary: 262 83% 58%;
+  --popover-foreground: 160 22% 11%;
+  --primary: 162 62% 26%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 13% 95%;
-  --secondary-foreground: 215 25% 25%;
-  --muted: 220 13% 95%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 262 83% 96%;
-  --accent-foreground: 262 83% 58%;
-  --destructive: 0 84% 60%;
+  --secondary: 150 12% 94%;
+  --secondary-foreground: 160 22% 16%;
+  --muted: 150 12% 94%;
+  --muted-foreground: 160 8% 36%;
+  --accent: 156 38% 93%;
+  --accent-foreground: 162 62% 21%;
+  --destructive: 4 70% 44%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 262 83% 58%;
-  --success: 142 71% 45%;
+  --border: 150 10% 87%;
+  --input: 150 10% 82%;
+  --ring: 162 62% 30%;
+  --success: 145 58% 30%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
+  --warning: 34 92% 38%;
   --warning-foreground: 0 0% 100%;
 
   /* Semantic Colors */
   --surface-1: 0 0% 100%;
-  --surface-2: 210 40% 98%;
-  --surface-3: 210 40% 96%;
-  --surface-4: 214.3 31.8% 91.4%;
+  --surface-2: 150 12% 97%;
+  --surface-3: 150 12% 95%;
+  --surface-4: 150 10% 90%;
 
   /* Spacing Scale */
   --space-1: 0.25rem;
@@ -67,8 +65,10 @@
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
   /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* System UI font (SF Pro on Apple devices); serif only for book titles */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Z-Index */
   --z-dropdown: 1000;
@@ -90,36 +90,36 @@
 }
 
 .dark {
-  /* Colors - Dark Theme (ShelfScanner-inspired dark mode) */
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  --card: 224 71% 6%;
-  --card-foreground: 213 31% 91%;
-  --popover: 224 71% 6%;
-  --popover-foreground: 213 31% 91%;
-  --primary: 263 70% 70%; /* Lighter purple for dark mode */
-  --primary-foreground: 224 71% 4%;
-  --secondary: 215 28% 17%;
-  --secondary-foreground: 213 31% 91%;
-  --muted: 215 28% 17%;
-  --muted-foreground: 217 11% 65%;
-  --accent: 215 28% 17%;
-  --accent-foreground: 213 31% 91%;
-  --destructive: 0 63% 31%;
-  --destructive-foreground: 213 31% 91%;
-  --border: 215 28% 17%;
-  --input: 215 28% 17%;
-  --ring: 263 70% 70%;
-  --success: 142 71% 45%;
-  --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
-  --warning-foreground: 0 0% 100%;
+  /* Colors - Dark Theme */
+  --background: 160 14% 7%;
+  --foreground: 150 12% 92%;
+  --card: 160 12% 10%;
+  --card-foreground: 150 12% 92%;
+  --popover: 160 12% 11%;
+  --popover-foreground: 150 12% 92%;
+  --primary: 156 46% 56%; 
+  --primary-foreground: 160 30% 8%;
+  --secondary: 160 10% 16%;
+  --secondary-foreground: 150 12% 92%;
+  --muted: 160 10% 15%;
+  --muted-foreground: 150 8% 68%;
+  --accent: 160 22% 16%;
+  --accent-foreground: 156 50% 72%;
+  --destructive: 4 72% 62%;
+  --destructive-foreground: 160 30% 8%;
+  --border: 160 10% 20%;
+  --input: 160 10% 24%;
+  --ring: 156 46% 56%;
+  --success: 145 50% 52%;
+  --success-foreground: 160 30% 8%;
+  --warning: 38 90% 58%;
+  --warning-foreground: 160 30% 8%;
 
   /* Semantic Colors - Dark */
-  --surface-1: 222.2 84% 4.9%;
-  --surface-2: 217.2 32.6% 17.5%;
-  --surface-3: 215 27.9% 16.9%;
-  --surface-4: 215 25% 26.7%;
+  --surface-1: 160 12% 10%;
+  --surface-2: 160 11% 13%;
+  --surface-3: 160 10% 16%;
+  --surface-4: 160 10% 22%;
 }
 
 /* Base Styles */
@@ -129,7 +129,6 @@
 
 html {
   scroll-behavior: smooth;
-  font-feature-settings: 'cv11', 'ss01';
   font-variant-ligatures: common-ligatures;
 }
 
@@ -144,7 +143,8 @@ body {
   min-height: 100vh;
 }
 
-/* Focus Management */
+/* Focus Management: every interactive element gets a visible keyboard ring */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
 .focus-visible:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
@@ -205,6 +205,29 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Book titles use the serif face; everything else is UI sans */
+.book-title {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
+/* Scan sweep over the photo while the scan runs (the only looping motion; off for reduced motion) */
+.scan-sweep {
+  top: -33%;
+  background: linear-gradient(to bottom, transparent, hsl(var(--primary) / 0.28), transparent);
+  animation: scan-sweep 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes scan-sweep {
+  to { transform: translateY(400%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-sweep { display: none; }
 }
 
 /* Typography Scale */
@@ -339,7 +362,7 @@ body {
   font-weight: 500;
   line-height: 1;
   text-decoration: none;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   cursor: pointer;
   border: 1px solid transparent;
   position: relative;
@@ -358,8 +381,6 @@ body {
 
 .btn-primary:hover:not(:disabled) {
   background: hsl(var(--primary) / 0.9);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
@@ -386,12 +407,6 @@ body {
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  transition: all var(--duration-normal) var(--ease-out);
-}
-
-.card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 
 .input {
@@ -408,7 +423,7 @@ body {
 .input:focus {
   outline: none;
   border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.2);
 }
 
 .input::placeholder {

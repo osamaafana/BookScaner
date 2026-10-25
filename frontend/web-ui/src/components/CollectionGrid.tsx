@@ -1,8 +1,6 @@
 import { memo } from 'react'
-import { Brain, Zap, CheckCircle2, Loader2, Sparkles, CheckSquare, Square } from 'lucide-react'
+import { Sparkles, CheckSquare, Square, BookmarkPlus, RotateCcw } from 'lucide-react'
 import { Button } from './ui/Button'
-import { Card, CardContent } from './ui/Card'
-import { Badge } from './ui/Badge'
 import { VirtualizedBookGrid } from './VirtualizedBookGrid'
 import { useContainerDimensions } from '../hooks/useContainerDimensions'
 
@@ -54,125 +52,71 @@ export const CollectionGrid = memo<CollectionGridProps>(({
 
   return (
     <div className="w-full mx-auto">
-      <Card className="collection-card border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm relative">
-
-        <CardContent className="p-4">
-          <div className="space-y-4">
-            {/* Sticky Header */}
-            <div className="sticky top-16 z-30 bg-gradient-to-r from-card/95 via-card/90 to-primary/5 backdrop-blur-sm -mx-4 px-4 py-3 border-b border-primary/10 mb-4">
-              <div className="text-center space-y-2">
-                <h2 className="text-lg font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                  Detected Books Collection
-                </h2>
-                <p className="text-sm text-muted-foreground">Click or swipe books to select for your library</p>
-
-                {/* Processing Insights */}
-                <div className="flex items-center justify-center gap-3 text-xs">
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/10 to-blue-600/10 border border-blue-500/20">
-                    <Brain className="h-3 w-3 text-blue-500" />
-                    <span className="text-blue-600 font-medium">{modelUsed || 'AI Model'}</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10 bg-card/80 backdrop-blur-sm shadow-lg px-3 py-1 h-auto"
-                    onClick={allSelected ? onDeselectAll : onSelectAll}
-                  >
-                    {allSelected ? (
-                      <>
-                        <CheckSquare className="h-3 w-3 text-green-500" />
-                        <span className="text-xs font-medium">Deselect All</span>
-                      </>
-                    ) : someSelected ? (
-                      <>
-                        <CheckSquare className="h-3 w-3 text-primary" />
-                        <span className="text-xs font-medium">Select All</span>
-                      </>
-                    ) : (
-                      <>
-                        <Square className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs font-medium">Select All</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Virtualized Book Grid */}
-            <div
-              ref={gridContainerRef}
-              className="w-full"
-              style={{ minHeight: '400px' }}
-            >
-              <VirtualizedBookGrid
-                books={enrichedBooks}
-                onBookSelect={onToggleBookSelection}
-                containerWidth={gridDimensions.width || 800} // Fallback width
-                containerHeight={Math.min(600, Math.max(400, enrichedBooks.length * 0.8))} // Dynamic height based on book count
-              />
-            </div>
+      <div className="collection-card rounded-xl border border-border bg-card">
+        <div className="sticky top-14 md:top-16 z-30 flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-foreground">
+              {enrichedBooks.length} {enrichedBooks.length === 1 ? 'book' : 'books'} found
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Tap the ones you're curious about.
+              {modelUsed && <span className="hidden sm:inline"> Read by {modelUsed}.</span>}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10"
+            onClick={allSelected ? onDeselectAll : onSelectAll}
+            aria-pressed={allSelected}
+          >
+            {allSelected ? <CheckSquare className="h-4 w-4" aria-hidden="true" /> : <Square className="h-4 w-4" aria-hidden="true" />}
+            {allSelected ? 'Clear selection' : someSelected ? `Select all (${selectedCount} chosen)` : 'Select all'}
+          </Button>
+        </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3 mt-6 max-w-4xl mx-auto">
-        <Button
-          variant="outline"
-          size="lg"
-          className="flex-1 gap-3 border-2 border-primary/40 hover:border-primary hover:bg-primary/10"
-          onClick={onScanAnother}
-        >
-          <Zap className="h-5 w-5" />
-          Scan Another
-        </Button>
-        <Button
-          size="lg"
-          className="flex-1 gap-3 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-500/90 hover:to-blue-600/90 shadow-lg hover:shadow-xl disabled:opacity-50"
-          onClick={onSaveSelectedBooks}
-          disabled={!enrichedBooks.some(book => book.selected) || isSaving}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Saving to Library...
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="h-5 w-5" />
-              Save to Library
-              {enrichedBooks.filter(book => book.selected).length > 0 && (
-                <Badge variant="secondary" className="ml-2 bg-white/20 text-white border-white/30">
-                  {enrichedBooks.filter(book => book.selected).length}
-                </Badge>
-              )}
-            </>
-          )}
-        </Button>
-        <Button
-          size="lg"
-          className="flex-1 gap-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-500/90 hover:to-pink-600/90 shadow-lg hover:shadow-xl disabled:opacity-50"
-          onClick={onGenerateRecommendations}
-          disabled={enrichedBooks.filter(book => book.selected).length === 0 || isGeneratingRecommendations}
-        >
-          {isGeneratingRecommendations ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-5 w-5" />
-              Get Recommendations
-              {enrichedBooks.filter(book => book.selected).length > 0 && (
-                <Badge variant="secondary" className="ml-2 bg-white/20 text-white border-white/30">
-                  {enrichedBooks.filter(book => book.selected).length}
-                </Badge>
-              )}
-            </>
-          )}
-        </Button>
+        <div ref={gridContainerRef} className="w-full p-3 md:p-4" style={{ minHeight: '400px' }}>
+          <VirtualizedBookGrid
+            books={enrichedBooks}
+            onBookSelect={onToggleBookSelection}
+            containerWidth={gridDimensions.width || 800}
+            containerHeight={Math.min(600, Math.max(400, enrichedBooks.length * 0.8))}
+          />
+        </div>
+      </div>
+
+      {/* Actions stay in thumb reach on phones */}
+      <div className="sticky bottom-[calc(56px+env(safe-area-inset-bottom))] md:bottom-4 z-30 mt-4 rounded-xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+          <Button
+            size="lg"
+            className="col-span-2 sm:order-3"
+            onClick={onGenerateRecommendations}
+            disabled={selectedCount === 0}
+            loading={isGeneratingRecommendations}
+          >
+            {!isGeneratingRecommendations && <Sparkles className="h-5 w-5" aria-hidden="true" />}
+            {isGeneratingRecommendations ? 'Ranking your picks…' : selectedCount > 0 ? `Get recommendations (${selectedCount})` : 'Get recommendations'}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="sm:order-2"
+            onClick={onSaveSelectedBooks}
+            disabled={selectedCount === 0}
+            loading={isSaving}
+          >
+            {!isSaving && <BookmarkPlus className="h-5 w-5" aria-hidden="true" />}
+            {isSaving ? 'Saving…' : 'Save'}
+          </Button>
+          <Button variant="ghost" size="lg" className="sm:order-1" onClick={onScanAnother}>
+            <RotateCcw className="h-5 w-5" aria-hidden="true" />
+            New scan
+          </Button>
+        </div>
+        {selectedCount === 0 && (
+          <p className="mt-2 text-center text-xs text-muted-foreground sm:text-right">Select at least one book to continue.</p>
+        )}
       </div>
     </div>
   )

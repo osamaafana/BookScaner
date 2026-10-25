@@ -11,15 +11,18 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light')
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light')
-
-  useEffect(() => {
-    const stored = localStorage.getItem('bookscanner-theme') as Theme
-    if (stored && ['dark', 'light'].includes(stored)) {
-      setTheme(stored)
+  // Read the saved choice synchronously so the first paint already uses it;
+  // with no saved choice, follow the device setting
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const stored = localStorage.getItem('bookscanner-theme')
+      if (stored === 'dark' || stored === 'light') return stored
+    } catch {
+      // storage unavailable (private mode)
     }
-  }, [])
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>(theme)
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -29,8 +32,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(theme)
     setResolvedTheme(theme)
 
-    // Store preference
-    localStorage.setItem('bookscanner-theme', theme)
+    try {
+      localStorage.setItem('bookscanner-theme', theme)
+    } catch {
+      // storage unavailable (private mode)
+    }
   }, [theme])
 
 

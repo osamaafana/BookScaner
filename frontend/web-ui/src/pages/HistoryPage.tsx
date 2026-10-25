@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Search, RotateCcw, Trash2, Eye } from 'lucide-react'
+import { Search, ScanLine, History as HistoryIcon, BookmarkPlus, Sparkles } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { Card, CardContent } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
 import { useStorage } from '../contexts/StorageContext'
-import { cn, groupBy } from '../lib/utils'
+import { groupBy } from '../lib/utils'
 import { useNavigate } from 'react-router-dom'
 
 interface HistoryItem {
@@ -97,216 +95,106 @@ export function HistoryPage() {
 
   const getItemIcon = (type: HistoryItem['type']) => {
     switch (type) {
-      case 'scan': return <Eye className="h-4 w-4" />
-      case 'book_added': return <RotateCcw className="h-4 w-4" />
-      case 'recommendation': return <RotateCcw className="h-4 w-4" />
-    }
-  }
-
-  const getItemColor = (type: HistoryItem['type']) => {
-    switch (type) {
-      case 'scan': return 'default'
-      case 'book_added': return 'success'
-      case 'recommendation': return 'warning'
+      case 'scan': return <ScanLine className="h-4 w-4" />
+      case 'book_added': return <BookmarkPlus className="h-4 w-4" />
+      case 'recommendation': return <Sparkles className="h-4 w-4" />
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-8">
-        {/* Enhanced Header - Mobile Optimized */}
-        <div className="text-center space-y-3 sm:space-y-4 md:space-y-8 mb-6 sm:mb-8 md:mb-16 relative">
-          {/* Animated background elements - Hidden on very small screens */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none hidden sm:block">
-            <div className="absolute top-10 md:top-20 left-1/4 w-1 md:w-2 h-1 md:h-2 bg-purple-400/30 rounded-full animate-pulse"></div>
-            <div className="absolute top-16 md:top-32 right-1/3 w-0.5 md:w-1 h-0.5 md:h-1 bg-blue-400/40 rounded-full animate-ping"></div>
-          </div>
+    <div>
+      <div className="mx-auto w-full max-w-3xl">
+        <header className="mb-6 md:mb-8 space-y-1">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">History</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Every shelf you scanned and every book you added.</p>
+        </header>
 
-          <div className="space-y-2 sm:space-y-3 md:space-y-6 relative">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-black text-foreground leading-[0.9] tracking-tight">
-              <span className="block relative">
-                History
-                <div className="absolute -bottom-0.5 sm:-bottom-1 md:-bottom-2 left-0 right-0 h-0.5 md:h-1 bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0 rounded-full"></div>
-              </span>
-            </h1>
-            <p className="text-xs sm:text-sm md:text-base text-muted-foreground max-w-2xl mx-auto px-2">
-              Track your book discovery journey
-            </p>
-          </div>
-        </div>
+        <p className="-mt-3 mb-5 text-sm text-muted-foreground tabular-nums">
+          {historyItems.filter(i => i.type === 'scan').length} scans · {historyItems.reduce((acc, item) => acc + (item.booksCount || 0), 0)} books found · {historyItems.filter(i => i.type === 'book_added').length} saved
+        </p>
 
-        <div className="space-y-6">
-
-        {/* Stats - Mobile Optimized */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6">
-          <Card className="text-center border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm hover:shadow-md transition-shadow duration-200">
-            <CardContent className="pt-2 sm:pt-3 md:pt-4 pb-2 sm:pb-3">
-              <div className="text-lg sm:text-xl md:text-2xl font-bold leading-none">
-                {historyItems.filter(i => i.type === 'scan').length}
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground leading-tight mt-1">Total Scans</div>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm hover:shadow-md transition-shadow duration-200">
-            <CardContent className="pt-2 sm:pt-3 md:pt-4 pb-2 sm:pb-3">
-              <div className="text-lg sm:text-xl md:text-2xl font-bold leading-none">
-                {historyItems.reduce((acc, item) =>
-                  acc + (item.booksCount || 0), 0
-                )}
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground leading-tight mt-1">Books Found</div>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm hover:shadow-md transition-shadow duration-200">
-            <CardContent className="pt-2 sm:pt-3 md:pt-4 pb-2 sm:pb-3">
-              <div className="text-lg sm:text-xl md:text-2xl font-bold leading-none">
-                {historyItems.filter(i => i.type === 'book_added').length}
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground leading-tight mt-1">Books Added</div>
-            </CardContent>
-          </Card>
-
-          <Card className="text-center border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm hover:shadow-md transition-shadow duration-200">
-            <CardContent className="pt-2 sm:pt-3 md:pt-4 pb-2 sm:pb-3">
-              <div className="text-lg sm:text-xl md:text-2xl font-bold leading-none">
-                {historyItems.filter(i =>
-                  i.timestamp >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                ).length}
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground leading-tight mt-1">This Week</div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Filters - Mobile Optimized */}
-      <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6">
-        {/* Search Input */}
-        <div className="w-full">
+        <div className="mb-5 flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
-              placeholder="Search history..."
+              type="search"
+              aria-label="Search history"
+              placeholder="Search history"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 focus:ring-2 focus:ring-primary/20 transition-all duration-200 h-10 sm:h-11"
+              className="h-11 pl-10"
             />
+          </div>
+
+          <div role="tablist" aria-label="Time period" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
+            {(['all', 'today', 'week', 'month'] as const).map((period) => {
+              const active = selectedPeriod === period
+              return (
+                <button
+                  key={period}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`h-10 shrink-0 rounded-full px-4 text-sm font-medium transition-colors ${
+                    active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
+                  }`}
+                >
+                  {{ all: 'All', today: 'Today', week: 'This week', month: 'This month' }[period]}
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        {/* Filter Buttons - Mobile Optimized */}
-        <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1">
-          {(['all', 'today', 'week', 'month'] as const).map((period) => (
-            <Button
-              key={period}
-              variant={selectedPeriod === period ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => setSelectedPeriod(period)}
-              className="capitalize transition-all duration-200 hover:scale-105 whitespace-nowrap flex-shrink-0 text-xs sm:text-sm px-3 sm:px-4"
-            >
-              {period}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* History Timeline - Mobile Optimized */}
-      {Object.keys(groupedItems).length === 0 ? (
-        <Card className="text-center py-8 sm:py-12">
-          <CardContent className="px-4 sm:px-6">
-            <Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
-            <h3 className="text-lg sm:text-h5 mb-2">
-              {searchQuery || selectedPeriod !== 'all' ? 'No history found' : 'Your history is empty'}
-            </h3>
-            <p className="text-sm sm:text-base text-muted-foreground mb-4 px-2">
-              {searchQuery || selectedPeriod !== 'all'
-                ? 'Try adjusting your search terms or time period'
-                : 'Start scanning books to build your discovery history'
-              }
-            </p>
+        {Object.keys(groupedItems).length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-4">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+              <HistoryIcon className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">
+                {searchQuery || selectedPeriod !== 'all' ? 'Nothing in this period' : 'No scans yet'}
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-[42ch] mx-auto">
+                {searchQuery || selectedPeriod !== 'all'
+                  ? 'Try another search or switch back to All.'
+                  : 'Each shelf you scan and each book you save is listed here, newest first.'}
+              </p>
+            </div>
             {!searchQuery && selectedPeriod === 'all' && (
-              <Button
-                onClick={() => navigate('/')}
-                className="text-sm sm:text-base"
-              >
-                Start Scanning
+              <Button size="lg" onClick={() => navigate('/')}>
+                <ScanLine className="h-5 w-5" aria-hidden="true" />
+                Scan a shelf
               </Button>
             )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4 sm:space-y-6">
-          {Object.entries(groupedItems).map(([date, items]) => (
-            <div key={date} className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <h3 className="text-sm sm:text-h6 font-semibold">{date}</h3>
-                <div className="flex-1 h-px bg-border" />
-                <Badge variant="outline" className="text-xs">{items.length} items</Badge>
-              </div>
-
-              <div className="space-y-2 sm:space-y-3">
-                {items.map((item) => (
-                  <Card key={item.id} className="group hover:shadow-md transition-all duration-200 border border-primary/20 bg-gradient-to-br from-card/90 via-card to-primary/5 backdrop-blur-sm">
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex items-start gap-2 sm:gap-3">
-                        <div className={cn(
-                          'flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center',
-                          'bg-muted group-hover:bg-primary group-hover:text-primary-foreground transition-colors'
-                        )}>
-                          <div className="h-3 w-3 sm:h-4 sm:w-4">
-                            {getItemIcon(item.type)}
-                          </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(groupedItems).map(([date, items]) => (
+              <section key={date} aria-label={date}>
+                <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{date}</h2>
+                <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+                  {items.map((item) => (
+                    <li key={item.id} className="flex items-start gap-3 p-3 sm:p-4">
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground" aria-hidden="true">
+                        <span className="h-4 w-4">{getItemIcon(item.type)}</span>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h3 className="text-sm font-medium text-foreground">{item.title}</h3>
+                          <time className="shrink-0 text-xs text-muted-foreground tabular-nums" dateTime={item.timestamp.toISOString()}>
+                            {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </time>
                         </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-1 sm:gap-2">
-                            <div className="min-w-0 flex-1">
-                              <h4 className="font-medium text-xs sm:text-sm leading-tight">{item.title}</h4>
-                              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-tight mt-0.5">
-                                {item.description}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                              <Badge variant={getItemColor(item.type)} className="text-xs px-1.5 py-0.5">
-                                {item.type.replace('_', ' ')}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 sm:h-6 sm:w-6"
-                              >
-                                <Trash2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-1.5 sm:mt-2">
-                            <div className="text-xs text-muted-foreground">
-                              {item.timestamp.toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </div>
-
-                            {item.booksCount && (
-                              <div className="text-xs text-muted-foreground">
-                                {item.booksCount} books
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <p className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{item.description}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
