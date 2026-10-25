@@ -1,17 +1,25 @@
+# BookScanner: same pattern as the other projects on the server.
+# Containers only join the shared proxy_network; Nginx Proxy Manager routes
+#   book-scanner.net / www  -> bookscaner-web-ui:80
+#   api.book-scanner.net    -> bookscaner-web-gateway:3001
+# Run from the repo root: docker compose up -d --build
 services:
   backend:
     build:
-      context: ../backend
+      context: ./backend
     container_name: bookscaner-backend
     env_file:
-      - ../.env
+      - .env
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     restart: unless-stopped
-    network_mode: host
+    expose:
+      - "8000"
+    networks:
+      - proxy_network
 
   web-ui:
     build:
-      context: ../frontend/web-ui
+      context: ./frontend/web-ui
       dockerfile: Dockerfile
       args:
         VITE_GATEWAY_URL: ""
@@ -20,18 +28,17 @@ services:
     expose:
       - "80"
     networks:
-      - app-network
       - proxy_network
 
   web-gateway:
     build:
-      context: ../frontend/web-gateway
+      context: ./frontend/web-gateway
       dockerfile: Dockerfile
     container_name: bookscaner-web-gateway
     env_file:
-      - ../.env
+      - .env
     environment:
-      - BACKEND_URL=http://172.17.0.1:8000
+      - BACKEND_URL=http://bookscaner-backend:8000
       - PORT=3001
     restart: unless-stopped
     expose:
@@ -42,12 +49,9 @@ services:
     depends_on:
       - backend
     networks:
-      - app-network
       - proxy_network
 
 networks:
-  app-network:
-    driver: bridge
   proxy_network:
     external: true
     name: proxy_network

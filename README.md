@@ -229,18 +229,16 @@ npm run dev   # http://localhost:3000
 
 ### Full Docker
 ```bash
-cd deployment
-docker compose -f docker-compose-full.yml up --build
+docker network create proxy_network   # once; on the server Nginx Proxy Manager owns it
+docker compose up --build
 # After first start:
-docker compose -f docker-compose-full.yml ps
-docker compose -f docker-compose-full.yml logs -f
+docker compose ps
+docker compose logs -f
 ```
 
-Default endpoints:
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:3001
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+Containers publish no host ports; they are reached by name on `proxy_network`
+(`bookscaner-web-ui:80`, `bookscaner-web-gateway:3001`, `bookscaner-backend:8000`).
+For local development use the npm / uvicorn commands above.
 
 ---
 
@@ -248,28 +246,28 @@ Default endpoints:
 
 1. Copy project to server:
 ```bash
-scp -r BookScanner/ user@server:/home/user/
+rsync -a --exclude node_modules --exclude .git BookScaner/ root@server:/opt/projects/BookScaner/
 ```
 
 2. SSH and set env:
 ```bash
 ssh user@server
-cd /home/user/BookScanner
+cd /opt/projects/BookScaner
 nano .env   # set production values
 ```
 
 3. Deploy:
 ```bash
-cd deployment
-docker compose -f docker-compose-full.yml up -d --build
-docker compose -f docker-compose-full.yml ps
-docker compose -f docker-compose-full.yml logs -f
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
 ```
 
 4. Reverse proxy and TLS:
 - Point your domain DNS to the server.
-- Terminate TLS at Nginx or a managed proxy.
-- Forward 443 → frontend:3000. Expose the backend only to the gateway.
+- TLS and routing are handled by Nginx Proxy Manager (no nginx container in this repo):
+  `book-scanner.net` → `bookscaner-web-ui:80`, `api.book-scanner.net` → `bookscaner-web-gateway:3001`.
+- The backend is only reachable inside `proxy_network`.
 
 ---
 
