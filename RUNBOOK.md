@@ -8,12 +8,13 @@
 
 ## Deploy (from the Mac)
 1. `rsync -a --exclude node_modules --exclude .git --exclude .env ./ root@91.98.136.8:/opt/projects/BookScaner/`
-2. First time only (old layout): `cd /opt/projects/BookScaner/deployment && docker compose -f docker-compose-full.yml down`
+2. Copy the Mac `.env` separately: `scp .env root@91.98.136.8:/opt/projects/BookScaner/.env` then `chmod 600` it.
 3. `cd /opt/projects/BookScaner && docker compose up -d --build`
-4. Check: `docker ps | grep bookscaner`, `curl -s https://api.book-scanner.net/health`, open https://book-scanner.net.
+4. `docker exec nginx-proxy-manager nginx -s reload` (NPM caches old container IPs; without it /api gives 502).
+5. Check: `docker ps | grep bookscaner`, `curl -s https://api.book-scanner.net/health`, open https://book-scanner.net.
 
 ## Rollback
-Keep a copy before step 1: `cp -a /opt/projects/BookScaner /opt/projects/BookScaner.bak-YYYY-MM-DD`. To roll back,
+Backup of the pre-2026-10-26 server code: `/root/backups/BookScaner-old-2026-10-26.tgz`. Keep a copy before step 1: `cp -a /opt/projects/BookScaner /opt/projects/BookScaner.bak-YYYY-MM-DD`. To roll back,
 `docker compose down`, restore the copy, and start the old stack with `deployment/docker-compose-full.yml`.
 
 ## Env vars (names only)

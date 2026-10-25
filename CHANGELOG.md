@@ -4,6 +4,16 @@ Newest first. Label = date + letter. Verification stamp on each entry.
 
 ## [Unreleased]
 
+### 2026-10-26d — deploy: new BookScanner live on the server
+- Pushed branch `sync-server-2026-10-25` (operator's `id_rsa` = GitHub `osamaafana`; default key is `Wkeel-Backend`).
+- Server `/opt/projects/BookScaner` replaced by this repo (rsync, no git), Mac `.env` copied (mode 600). Built
+  images first, then stopped the old `deployment` stack, swapped folders, `docker compose up -d` (project
+  `bookscaner`, all on `proxy_network`, no host ports). Old images `deployment-*` and network removed (714 MB).
+- NPM unchanged (same container names); `nginx -s reload` needed because NPM cached the gateway's old IP (502).
+- Backup of old code: `/root/backups/BookScaner-old-2026-10-26.tgz`.
+- Stamp: live-verified: https://book-scanner.net 200, api health ok, live scan 3 books (groq) in 3s, live recs ok,
+  other NPM sites 200/302.
+
 ### 2026-10-26c — fix(recs): honest to the reader's chosen preferences
 - Prompt v`2026-10-26e`: no invented interests; specific genre 8-10, broad Non-Fiction 5-7 (story-driven first),
   no match <=4; one con per book; shelf note from code (`_shelf_note`) shown on For you page.
