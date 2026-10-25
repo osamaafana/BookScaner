@@ -4,6 +4,17 @@ Newest first. Label = date + letter. Verification stamp on each entry.
 
 ## [Unreleased]
 
+### 2026-10-25e — fix(ai): scanning works again; Groq-first with Groq fallback
+- Commits `f11d792` (accept `rediss://` Redis URLs) and `13a81ad` (AI fixes). Not deployed; server untouched.
+- Root causes found: Upstash Redis DB gone (operator made a new one); old Groq key invalid (operator replaced);
+  Groq retired llama-4-scout and llama-3.1-8b; NVIDIA retired llama-3.1-70b and the NVIDIA key returns 403;
+  Groq free tier caps output at 1000 tokens/min, so uncapped requests were refused.
+- Reader `qwen/qwen3.8-27b` (thinking off, 1000-token cap, title-by-author prompt). Fallback Google Vision → NVIDIA
+  → Groq `GROQ_TEXT_MODEL` grouping. Recommendations `openai/gpt-oss-20b`, JSON mode, rewritten prompt.
+- Stamp: live-verified on the Mac through gateway + backend: jungle_book.jpg 3 books in 8s; 2560.webp 15 books in
+  31s (some wrong metadata matches, see T-8). Fallback alone: 9 books in 2.3s. Recs: 5 books scored in 0.7s.
+- Mac `.env` now holds the server values plus new Redis URL, new Groq key and model names (not committed).
+
 ### 2026-10-25c — feat(web-ui): calm, bookish redesign (impeccable pass)
 - Commit `c58f583` on branch `sync-server-2026-10-25`. Not deployed.
 - New design tokens in `frontend/web-ui/src/styles/globals.css` (bottle-green accent, light + dark), system font,
