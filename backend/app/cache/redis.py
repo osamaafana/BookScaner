@@ -8,8 +8,9 @@ from ..config import settings
 
 @lru_cache
 def get_redis():
-    # Parse Upstash Redis URL format: redis://default:token@host:port
-    if settings.REDIS_URL.startswith("redis://"):
+    # Parse Upstash Redis URL format: redis(s)://default:token@host:port
+    # (Upstash's console gives rediss://, with TLS)
+    if settings.REDIS_URL.startswith(("redis://", "rediss://")):
         # Parse traditional Redis URL format
         parsed = urlparse(settings.REDIS_URL)
         if "upstash.io" in parsed.hostname:
