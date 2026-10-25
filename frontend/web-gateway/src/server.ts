@@ -28,10 +28,17 @@ app.set("trust proxy", 1); // behind Vercel/NGINX/CDN
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://91.98.136.8:3000', 'http://localhost:3000', 'http://localhost:5173'],
+  origin: [
+    'https://book-scanner.net',
+    'https://www.book-scanner.net',
+    'https://api.book-scanner.net',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://91.98.136.8:3000'
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-Id', 'X-Requested-With', 'X-Admin-Token']
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','X-Device-Id','X-Requested-With','X-Admin-Token']
 }));
 
 // Enhanced security headers with Helmet

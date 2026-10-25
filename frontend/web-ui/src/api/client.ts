@@ -17,31 +17,25 @@ import type {
 
 // Validate and sanitize gateway URL with fallback to same origin
 function getGatewayUrl(): string {
-  const envUrl = import.meta.env.VITE_GATEWAY_URL
+  const envUrl = import.meta.env.VITE_GATEWAY_URL?.trim();
 
-  // If no URL provided, use same origin
-  if (!envUrl || envUrl.trim() === '') {
-    return ''
+  // Dev: allow same-origin if unset
+  if (import.meta.env.DEV) {
+    if (!envUrl) return "";
+    try {
+      const u = new URL(envUrl);
+      if (!["http:", "https:"].includes(u.protocol)) return "";
+      return u.origin;
+    } catch { return ""; }
   }
 
-  // Validate URL format
+  // Prod: require HTTPS; fall back to public API host
+  if (!envUrl) return "https://api.book-scanner.net";
   try {
-    const url = new URL(envUrl)
-
-    // Only allow http/https protocols for security
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      if (import.meta.env.DEV) {
-        console.warn('Invalid VITE_GATEWAY_URL protocol, falling back to same origin:', url.protocol)
-      }
-      return ''
-    }
-
-    return url.origin
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('Invalid VITE_GATEWAY_URL format, falling back to same origin:', envUrl, error)
-    }
-    return ''
+    const u = new URL(envUrl);
+    return u.protocol === "https:" ? u.origin : "https://api.book-scanner.net";
+  } catch {
+    return "https://api.book-scanner.net";
   }
 }
 

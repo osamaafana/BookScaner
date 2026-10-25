@@ -87,10 +87,7 @@ export function Footer() {
                 <div className="text-xs md:text-sm text-muted-foreground">Data Scientist</div>
 
                 <div className="space-y-1.5 md:space-y-2">
-                  <div className="flex items-start gap-2 text-xs md:text-sm text-muted-foreground">
-                    <Mail className="h-3 w-3 md:h-4 md:w-4 mt-0.5 flex-shrink-0" />
-                    <span className="break-all">Work: o.afana@xocialive.com</span>
-                  </div>
+                  
                   <div className="flex items-start gap-2 text-xs md:text-sm text-muted-foreground">
                     <Mail className="h-3 w-3 md:h-4 md:w-4 mt-0.5 flex-shrink-0" />
                     <span className="break-all">Personal: osamaafana4@gmail.com</span>
