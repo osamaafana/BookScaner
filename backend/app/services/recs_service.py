@@ -5,7 +5,10 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
+import hashlib
+
 from app.adapters.ollama_recs import LlamaRecsAdapter
+from app.cache.helpers import cache_get, cache_set
 from app.db.models import ActionEnum, Book, Device, History, Recommendation
 from app.services.types import (BookAnalysisRequest, BookAnalysisResponse,
                                 BookScore)
@@ -26,6 +29,17 @@ def _key_from_book(b: Dict[str, Any]) -> tuple[str, str]:
     return (_norm(b.get("title")), _norm(b.get("author")))
 
 
+def _quality_for(score: float) -> str:
+    """Label always follows the score (models mislabel edge cases like 7.0)."""
+    if score >= 9:
+        return "perfect"
+    if score >= 7:
+        return "good"
+    if score >= 4:
+        return "fair"
+    return "poor"
+
+
 def _coerce_score(v) -> float:
     """Safely convert value to float, handling NaN and invalid inputs."""
     try:
@@ -33,6 +47,25 @@ def _coerce_score(v) -> float:
         return 0.0 if (s != s) else s  # NaN -> 0
     except Exception:
         return 0.0
+
+
+# Bump when the prompt changes so old answers are not reused
+PROMPT_VERSION = "2026-10-26b"
+SIG_TTL = 30 * 24 * 3600
+
+
+def _prefs_signature(preferences: Dict[str, Any]) -> str:
+    """Stable fingerprint of the reader's taste + prompt version."""
+    norm = {
+        k: sorted(str(x).lower() for x in (preferences.get(k) or []))
+        for k in ("genres", "authors", "languages")
+    }
+    raw = PROMPT_VERSION + json.dumps(norm, sort_keys=True)
+    return hashlib.sha1(raw.encode()).hexdigest()[:16]
+
+
+def _sig_key(device_id: str, key: tuple[str, str]) -> str:
+    return f"recsig:{device_id}:{key[0].lower()}|{key[1].lower()}"
 
 
 class RecsService:
@@ -48,8 +81,18 @@ class RecsService:
             f"Analyzing {len(request.books)} books for device {request.device_id}"
         )
 
-        # Get cached recommendations as a map
+        # Get cached recommendations as a map; drop any made for other preferences
+        # or by an older prompt (the DB row does not record either)
+        prefs_for_sig = request.user_preferences or {}
+        signature = _prefs_signature(prefs_for_sig)
         cached_map = await self._get_cached_map(db, request)
+        for key in list(cached_map):
+            try:
+                if await cache_get(_sig_key(request.device_id, key)) != signature:
+                    del cached_map[key]
+            except Exception as e:  # cache down: recompute rather than serve stale
+                logger.warning(f"Recommendation signature check failed: {e}")
+                del cached_map[key]
         missing_books = [
             b for b in request.books if _key_from_book(b) not in cached_map
         ]
@@ -95,6 +138,11 @@ class RecsService:
             user_preferences=user_preferences,
         )
         await self._cache_recommendations(db, req_for_missing, missing_scores)
+        for b in missing_books:
+            try:
+                await cache_set(_sig_key(request.device_id, _key_from_book(b)), signature, SIG_TTL)
+            except Exception as e:
+                logger.warning(f"Could not store recommendation signature: {e}")
 
         # Merge back in original order
         merged_map = dict(cached_map)
@@ -153,7 +201,8 @@ class RecsService:
             ", ".join(preferences.get("languages", [])) or "No specific languages"
         )
 
-        prompt = f"""You help a reader standing at a bookshelf decide which of these books they would enjoy.
+        prompt = f"""You are a well-read bookseller helping a reader who is standing at a shelf and wants to know
+which of these books to pick up.
 
 READER
 - Favorite genres: {genres_text}
@@ -162,16 +211,21 @@ READER
 
 BOOKS (numbered)
 {books_text}
-For EVERY book above, judge how well it fits this reader. Use what you know about the book (genre, themes, style,
-reputation). If you do not recognize a book, say so in the reasoning and score it on the title and genres given.
-Score in a language the reader does not read at 3 or lower.
+How to judge each book:
+- A book fits if it matches ANY of the favorite genres; it does not need to match all of them. "Non-Fiction"
+  covers every non-fiction subject (business, biography, history, science, self-help...). Never lower a score
+  only because the book is not in one of the other favorite genres.
+- Use what you know about the book: its subject, style, how demanding it is, what readers value in it.
+- A book by a favorite author scores at least 8. A book in a language the reader does not read scores 3 or lower.
+- If you do not know the book, say so and judge from the title and any genres given.
 
-Scoring: 0-10, one decimal. 9-10 = clearly matches a favorite genre or author; 7-8 = good fit; 4-6 = mixed;
-0-3 = poor fit. match_quality must agree with the score: perfect (9+), good (7-8.9), fair (4-6.9), poor (<4).
+Scoring: 0-10 with one decimal. 9-10 = exactly their taste; 7-8.9 = good fit; 4-6.9 = partial fit; below 4 =
+poor fit. match_quality must agree: perfect (9+), good (7-8.9), fair (4-6.9), poor (<4).
 
-Write to the reader as "you", plainly, no hype.
-- recommendation: one sentence, at most 25 words, saying why they would or would not enjoy it.
-- reasoning: at most 20 words naming the deciding factors.
+Writing, addressed to the reader as "you", plain and specific, no hype, no repeating the genre list back:
+- recommendation: 2-3 sentences (40-70 words). First say what the book is actually about or what you get from
+  it. Then say concretely why it suits or does not suit this reader, and who would enjoy it most.
+- reasoning: one short sentence naming the deciding factor for the score.
 
 Return only JSON, one entry per book, using the same book_index numbers:
 {{"book_analyses":[{{"book_index":1,"title":"...","author":"...","score":8.5,"recommendation":"...","match_quality":"good","reasoning":"..."}}]}}"""
@@ -210,8 +264,8 @@ Return only JSON, one entry per book, using the same book_index numbers:
                             recommendation=analysis.get(
                                 "recommendation", "This book might interest you."
                             ),
-                            match_quality=analysis.get("match_quality", "fair"),
-                            is_perfect_match=score_val >= 8.0,
+                            match_quality=_quality_for(score_val),
+                            is_perfect_match=score_val >= 9.0,
                             reasoning=analysis.get(
                                 "reasoning", "Analysis based on your preferences."
                             ),

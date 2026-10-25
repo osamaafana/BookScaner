@@ -207,6 +207,11 @@ export function RecommendationsPage() {
                       {rec.short_reason && (
                         <p className="text-sm leading-relaxed text-foreground/85 max-w-[65ch]">{rec.short_reason}</p>
                       )}
+                      {rec.reasoning && (
+                        <p className="text-xs text-muted-foreground max-w-[65ch]">
+                          <span className="font-medium text-foreground/70">Score based on:</span> {rec.reasoning}
+                        </p>
+                      )}
 
                       <Button
                         variant="outline"
