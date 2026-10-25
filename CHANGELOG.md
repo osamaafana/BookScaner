@@ -4,6 +4,14 @@ Newest first. Label = date + letter. Verification stamp on each entry.
 
 ## [Unreleased]
 
+### 2026-10-26b — fix(recs): useful picks, fair scoring, no stale answers
+- Recommendation text 40-70 words (what the book is about + who it suits); a book needs only one favorite genre;
+  label follows score; reused answers must match current preferences and prompt (`PROMPT_VERSION`, Redis
+  `recsig:` keys). UI shows "Score based on" line.
+- Stamp: live-verified through gateway: 3 books 8s fresh, 2s cached; switching genres Romance -> Non-Fiction gave a
+  fresh score (5.5 -> 8.5) instead of the cached one.
+- Google Books: new key works intermittently (1 real 200 in ~40 tries); Google returns 503 for most requests.
+
 ### 2026-10-26a — fix(lookup): right book or no book; parallel lookups
 - Commit on branch `sync-server-2026-10-25`. Not deployed.
 - `books_meta.py`: results must match title (`title_matches`) and author (`author_matches`); free-text retry;
