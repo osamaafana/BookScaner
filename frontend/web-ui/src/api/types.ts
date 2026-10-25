@@ -107,6 +107,7 @@ export interface AnalysisSummary {
   perfect_matches: number
   average_score: number
   highest_score: number
+  note?: string | null // shown when nothing on the shelf strongly matches the reader
 }
 
 export interface BookAnalysisResponse {

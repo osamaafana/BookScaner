@@ -31,7 +31,7 @@ export function RecommendationsPage() {
 
   const { books, addBook, preferences } = useStorage()
   const toast = useToast()
-  const { data: recommendationsData, hasData, bookScores, isCached, cacheHitCount } = useRecommendationsData()
+  const { data: recommendationsData, hasData, bookScores, isCached, cacheHitCount, analysisSummary } = useRecommendationsData()
 
   const getScoreColor = (score?: number) => {
     if (score == null) return 'text-muted-foreground'
@@ -166,6 +166,12 @@ export function RecommendationsPage() {
         </ul>
       ) : (
         <>
+          {recommendations.length > 0 && analysisSummary?.note && (
+            <p role="status" className="mb-4 rounded-xl border border-border bg-secondary/60 p-4 text-sm text-foreground">
+              {analysisSummary.note}
+            </p>
+          )}
+
           {recommendations.length > 0 && (
             <ol className="space-y-3">
               {recommendations.map((rec, index) => {

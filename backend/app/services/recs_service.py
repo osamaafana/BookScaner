@@ -40,6 +40,26 @@ def _quality_for(score: float) -> str:
     return "poor"
 
 
+BROAD_GENRES = {"fiction", "non-fiction", "nonfiction"}
+
+
+def _shelf_note(scores: List["BookScore"], preferences: Dict[str, Any]) -> Optional[str]:
+    """Plain-language note when nothing on the shelf strongly matches the reader."""
+    if not scores:
+        return None
+    best = max(scores, key=lambda s: s.score)
+    if best.score >= 8:
+        return None
+    specific = [g for g in (preferences.get("genres") or []) if g.lower() not in BROAD_GENRES]
+    if specific:
+        if len(specific) == 1:
+            listed = specific[0].lower()
+        else:
+            listed = ", ".join(g.lower() for g in specific[:-1]) + " or " + specific[-1].lower()
+        return f"None of these books is {listed}. The closest fit for you is {best.title}."
+    return f"Nothing here closely matches your taste. The closest fit for you is {best.title}."
+
+
 def _coerce_score(v) -> float:
     """Safely convert value to float, handling NaN and invalid inputs."""
     try:
@@ -50,7 +70,7 @@ def _coerce_score(v) -> float:
 
 
 # Bump when the prompt changes so old answers are not reused
-PROMPT_VERSION = "2026-10-26b"
+PROMPT_VERSION = "2026-10-26e"
 SIG_TTL = 30 * 24 * 3600
 
 
@@ -108,6 +128,7 @@ class RecsService:
                     else 0
                 ),
                 "highest_score": max((s.score for s in book_scores), default=0),
+                "note": _shelf_note(book_scores, request.user_preferences or {}),
             }
             return BookAnalysisResponse(
                 success=True,
@@ -127,8 +148,8 @@ class RecsService:
         analysis_prompt = self._build_analysis_prompt(missing_books, user_preferences)
 
         ai_response = await self.adapter.analyze_books(
-            analysis_prompt, temperature=0.0
-        )  # force determinism
+            analysis_prompt, temperature=0.4
+        )  # a little variety in wording; scores stay stable
         missing_scores = self._parse_analysis_response(ai_response, missing_books)
 
         # Cache only the new ones
@@ -164,6 +185,7 @@ class RecsService:
                 else 0
             ),
             "highest_score": max((s.score for s in book_scores), default=0),
+            "note": _shelf_note(book_scores, user_preferences),
         }
         return BookAnalysisResponse(
             success=True,
@@ -201,34 +223,38 @@ class RecsService:
             ", ".join(preferences.get("languages", [])) or "No specific languages"
         )
 
-        prompt = f"""You are a well-read bookseller helping a reader who is standing at a shelf and wants to know
-which of these books to pick up.
+        prompt = f"""You are an honest, well-read bookseller helping a reader at a shelf decide which of these books
+to pick up.
 
-READER
-- Favorite genres: {genres_text}
+THE READER CHOSE EXACTLY THIS (nothing else is known about them)
+- Genres: {genres_text}
 - Favorite authors: {authors_text}
-- Languages they read: {languages_text}
+- Languages: {languages_text}
 
 BOOKS (numbered)
 {books_text}
-How to judge each book:
-- A book fits if it matches ANY of the favorite genres; it does not need to match all of them. "Non-Fiction"
-  covers every non-fiction subject (business, biography, history, science, self-help...). Never lower a score
-  only because the book is not in one of the other favorite genres.
-- Use what you know about the book: its subject, style, how demanding it is, what readers value in it.
-- A book by a favorite author scores at least 8. A book in a language the reader does not read scores 3 or lower.
-- If you do not know the book, say so and judge from the title and any genres given.
+Rules for judging:
+1. Only the choices above count. Never say or imply the reader likes anything they did not choose
+   (do not write "your interest in business" unless they chose Business). Do not guess their taste from the books.
+2. Strength of a match:
+   - Matches a specific genre they chose (anything except the broad "Fiction" / "Non-Fiction"), or is by a
+     favorite author: strong match, 8-10.
+   - Matches only the broad "Fiction" or "Non-Fiction" choice: partial match, 5-7. Within this band rank by how
+     readable and story-driven the book is for a general reader: biographies, memoirs and books built on true
+     stories score highest (about 7); frameworks, manuals and how-to books score lowest (about 5).
+   - Matches nothing they chose, or is in a language they do not read: 4 or lower.
+3. Compare the books with each other so the scores spread out and the best few stand out.
+4. If you do not know a book, say so and judge from its title and any genres given.
 
-Scoring: 0-10 with one decimal. 9-10 = exactly their taste; 7-8.9 = good fit; 4-6.9 = partial fit; below 4 =
-poor fit. match_quality must agree: perfect (9+), good (7-8.9), fair (4-6.9), poor (<4).
-
-Writing, addressed to the reader as "you", plain and specific, no hype, no repeating the genre list back:
-- recommendation: 2-3 sentences (40-70 words). First say what the book is actually about or what you get from
-  it. Then say concretely why it suits or does not suit this reader, and who would enjoy it most.
-- reasoning: one short sentence naming the deciding factor for the score.
+Writing (to the reader as "you", plain and specific):
+- recommendation: 2-3 sentences, 40-70 words. Say what the book is and what makes it distinct (story, format,
+  difficulty, length, style). Do not restate which choice it matches (the reasoning field does that). Include one honest
+  point against it, about the book itself (length, density, dated, repetitive...) or measured against the
+  reader's actual choices; never against interests they did not choose (no "for readers seeking business tips"). Vary your sentence openings; do not start every entry the same way.
+- reasoning: one short sentence with the deciding factor, naming the reader's choice it matched (or "no match").
 
 Return only JSON, one entry per book, using the same book_index numbers:
-{{"book_analyses":[{{"book_index":1,"title":"...","author":"...","score":8.5,"recommendation":"...","match_quality":"good","reasoning":"..."}}]}}"""
+{{"book_analyses":[{{"book_index":1,"title":"...","author":"...","score":6.5,"recommendation":"...","match_quality":"fair","reasoning":"..."}}]}}"""
         return prompt
 
     def _parse_analysis_response(
