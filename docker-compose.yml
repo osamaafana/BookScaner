@@ -3,6 +3,8 @@
 #   book-scanner.net / www  -> bookscaner-web-ui:80
 #   api.book-scanner.net    -> bookscaner-web-gateway:3001
 # Run from the repo root: docker compose up -d --build
+name: bookscaner
+
 services:
   backend:
     build:
