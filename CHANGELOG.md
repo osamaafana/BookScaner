@@ -4,6 +4,16 @@ Newest first. Label = date + letter. Verification stamp on each entry.
 
 ## [Unreleased]
 
+### 2026-10-26a — fix(lookup): right book or no book; parallel lookups
+- Commit on branch `sync-server-2026-10-25`. Not deployed.
+- `books_meta.py`: results must match title (`title_matches`) and author (`author_matches`); free-text retry;
+  cover from another matching edition or Google Books; Google Books errors no longer log the URL with the key.
+- `scan.py`: lookups run in parallel (8 at a time). Cache keys `meta:v2:` and `scan:v2:`.
+- Stamp: live-verified on the Mac through gateway: operator's 9-book photo 9/9 correct, all covers, 10s
+  (was 8/9, 1 missing cover); 2560.webp 9 correct of 11 entries, 9-14s (was ~31s). Remaining: 2 reader
+  inventions ("from 2019", "The National Ballpark Guide") shown without cover; Zero to One year 2001 is Open
+  Library's data.
+
 ### 2026-10-25e — fix(ai): scanning works again; Groq-first with Groq fallback
 - Commits `f11d792` (accept `rediss://` Redis URLs) and `13a81ad` (AI fixes). Not deployed; server untouched.
 - Root causes found: Upstash Redis DB gone (operator made a new one); old Groq key invalid (operator replaced);

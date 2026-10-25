@@ -12,12 +12,15 @@
 - T-6 `HomePage.tsx` is ~1,400 lines; split scan logic into a hook (`useScan`) and keep the page as layout.
 - T-7 Server `.env` is world-readable (644) and an old `.env.old` sits next to it; tighten to 600, remove old file.
 
-- T-8 Book lookup picks wrong matches for fragments ("Julian" → Gore Vidal, "from 2019"); tighten matching in
+- T-8 DONE 2026-10-26 (see CHANGELOG 2026-10-26a). Left: reader sometimes invents a title (shown without cover);
+  Open Library years can be wrong (Zero to One = 2001). Was: Book lookup picks wrong matches for fragments ("Julian" → Gore Vidal, "from 2019"); tighten matching in
   `books_meta_service.py` (require title similarity) and drop entries without a real title. Scans of big shelves take
   ~30s because lookups run one by one; run them in parallel.
 - T-9 Server `.env` still has the dead Redis URL, old Groq key and retired models: copy the Mac values when deploying.
 
 ## AWAITING OPERATOR
+- AO-3 Google Books returns 503 with the key (429 without): check the key's project/quota in Google Cloud Console.
+  The key was printed in local backend logs before 2026-10-26a; consider restricting or rotating it.
 - AO-2 New NVIDIA API key (current one returns 403). Optional: Groq covers the fallback without it.
 - AO-1 Review the redesign locally (`npm run dev` in `frontend/web-ui`) and say deploy / change.
 
