@@ -4,6 +4,13 @@ Newest first. Label = date + letter. Verification stamp on each entry.
 
 ## [Unreleased]
 
+### 2026-10-26c — fix(recs): honest to the reader's chosen preferences
+- Prompt v`2026-10-26e`: no invented interests; specific genre 8-10, broad Non-Fiction 5-7 (story-driven first),
+  no match <=4; one con per book; shelf note from code (`_shelf_note`) shown on For you page.
+- Stamp: live-verified through gateway with prefs Non-Fiction/Mystery/Romance: business shelf -> 5.0-7.0, Steve
+  Jobs top, note "None of these books is mystery or romance..."; mixed shelf -> Dragon Tattoo 9.0 (Mystery),
+  Pride and Prejudice 9.0 (Romance), Steve Jobs 7.0, no note.
+
 ### 2026-10-26b — fix(recs): useful picks, fair scoring, no stale answers
 - Recommendation text 40-70 words (what the book is about + who it suits); a book needs only one favorite genre;
   label follows score; reused answers must match current preferences and prompt (`PROMPT_VERSION`, Redis
