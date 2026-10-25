@@ -12,40 +12,57 @@ from ..services.types import Spine, SpineResult
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
-    "You are a JSON-only response generator. Input: OCR fragments with text + bbox in [0,1]. "
-    "Output: DISTINCT PHYSICAL BOOKS.\n\n"
-    "CONTRACT:\n"
-    'Return ONLY valid JSON: {"spines":[{"text":string,"candidate_isbn":null,'
-    '"bbox":{"x":0.1234,"y":0.5678,"w":0.1111,"h":0.2222}}]}\n'
-    'If none: {"spines":[]}.\n\n'
-    "GROUPING:\n"
-    "- ONE entry = ONE physical spine/cover.\n"
-    "- Merge fragments that overlap or align on the same vertical strip.\n"
-    "- Author names, subtitles, marketing badges belong to the SAME entry; never separate.\n"
-    "- CRITICAL: If a fragment contains ONLY an author name (like 'Rudyard Kipling', 'A. A. Milne', 'P. L. Travers'), IGNORE it completely. These are not separate books.\n"
-    "- If a spine lists multiple related titles (sequels/series list), return ONLY the base/main title "
-    "(shortest shared-prefix title on that spine).\n"
-    "- No duplicates.\n\n"
-    "BBOX:\n"
-    "- x=min(x_i), y=min(y_i), w=max(x_i)-min(x_i), h=max(y_i)-min(y_i).\n"
-    "- Round to 4 decimals.\n\n"
-    "QUALITY:\n"
-    "- Maximize recall, minimize false positives. No invented text.\n"
-    "- Sort by bbox.y then bbox.x.\n\n"
-    "Respond with STRICT JSON only."
+    "You turn OCR fragments from a photo of books into a list of distinct physical books.\n\n"
+    "Input: JSON {\"candidates\":[{\"text\":...,\"bbox\":{x,y,w,h}}]}; bbox values are 0-1 from the top-left.\n\n"
+    "Grouping:\n"
+    "- Fragments on the same spine or cover (overlapping or lined up along one strip) belong to ONE book.\n"
+    "- An author name belongs to the book it sits on; never list an author on its own.\n"
+    "- Drop taglines, subtitles, edition notes, publisher names and sales claims "
+    "(\"bestseller\", \"over 15 million copies sold\").\n"
+    "- Use only words that appear in the fragments; fix obvious OCR splits but do not invent titles.\n"
+    "- No duplicates. Order top-to-bottom, then left-to-right.\n\n"
+    "Output: only JSON, no prose, in exactly this shape:\n"
+    '{"spines":[{"text":"Think and Grow Rich by Napoleon Hill","candidate_isbn":null}]}\n'
+    "text = title, then ' by ' and the author when an author fragment is present. "
+    "candidate_isbn = digits of a printed ISBN, else null. "
+    'If no book can be identified, return {"spines":[]}.'
 )
 
 
 def build_user_prompt(candidates: List[Dict[str, Any]]) -> str:
-    # Compact JSON so the model sees the exact inputs
-    return json.dumps({"candidates": candidates}, separators=(",", ":"))
+    # Compact JSON; 3-decimal boxes halve the input tokens (Groq free tier: 7000/min)
+    compact = []
+    for c in candidates:
+        item: Dict[str, Any] = {"text": c.get("text", "")}
+        box = c.get("bbox")
+        if box:
+            item["bbox"] = {k: round(float(v), 3) for k, v in box.items()}
+        compact.append(item)
+    return json.dumps({"candidates": compact}, separators=(",", ":"))
 
 
 class NIMAdapter:
-    def __init__(self):
-        self.base_url = settings.NVIDIA_BASE_URL
-        self.model = settings.NVIDIA_MODEL_NAME
-        self.api_key = settings.NVIDIA_API_KEY
+    """OCR-fragment grouper on any OpenAI-compatible chat API.
+
+    Defaults to NVIDIA NIM; `groq_grouper()` builds the same adapter on Groq
+    as the fallback when NVIDIA is unavailable.
+    """
+
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        max_tokens: int = 2000,
+        extra: Dict[str, Any] | None = None,
+        name: str = "NVIDIA NIM",
+    ):
+        self.base_url = (base_url or settings.NVIDIA_BASE_URL).rstrip("/")
+        self.model = model or settings.NVIDIA_MODEL_NAME
+        self.api_key = settings.NVIDIA_API_KEY if api_key is None else api_key
+        self.max_tokens = max_tokens
+        self.extra = extra or {}
+        self.name = name
         self.headers = (
             {
                 "Authorization": f"Bearer {self.api_key}",
@@ -72,7 +89,8 @@ class NIMAdapter:
                 {"role": "user", "content": build_user_prompt(candidates)},
             ],
             "temperature": 0,
-            "max_tokens": 2000,  # Increased max_tokens
+            "max_tokens": self.max_tokens,
+            **self.extra,
         }
 
         try:
@@ -86,16 +104,16 @@ class NIMAdapter:
                 data = r.json()
         except httpx.HTTPStatusError as e:
             logger.error(
-                f"NVIDIA NIM HTTP error: {e.response.status_code} - {e.response.text}"
+                f"{self.name} HTTP error: {e.response.status_code} - {e.response.text[:300]}"
             )
             raise HTTPException(
                 status_code=e.response.status_code,
-                detail=f"nvidia_http_error:{e.response.text[:200]}",
+                detail=f"{self.name} HTTP {e.response.status_code}: {e.response.text[:200]}",
             )
         except Exception as e:
-            logger.error(f"NVIDIA NIM error: {e}")
+            logger.error(f"{self.name} error: {e.__class__.__name__}: {e}")
             raise HTTPException(
-                status_code=502, detail=f"nvidia_error:{e.__class__.__name__}:{str(e)}"
+                status_code=502, detail=f"{self.name} error: {e.__class__.__name__}: {e}"
             )
 
         # Parse OpenAI-compatible NIM response
@@ -145,11 +163,10 @@ class NIMAdapter:
             # Convert to SpineResult format
             spines = []
             for spine_data in parsed.get("spines", []):
-                spine = Spine(
-                    text=spine_data["text"],
-                    candidate_isbn=spine_data.get("candidate_isbn"),
-                    bbox=spine_data.get("bbox"),
-                )
+                text = (spine_data.get("text") or "").strip()
+                if not text:
+                    continue
+                spine = Spine(text=text, candidate_isbn=spine_data.get("candidate_isbn"))
                 spines.append(spine)
 
             print(f"DEBUG: NVIDIA NIM - Successfully created {len(spines)} spines")
@@ -159,5 +176,23 @@ class NIMAdapter:
             print(f"DEBUG: NVIDIA NIM - Parse error: {e}")
             print(f"DEBUG: NVIDIA NIM - Content that failed to parse: '{content}'")
             raise HTTPException(
-                status_code=502, detail=f"nvidia_parse_error:{e.__class__.__name__}"
+                status_code=502, detail=f"{self.name} parse error: {e.__class__.__name__}: {e}"
             )
+
+
+def groq_grouper() -> "NIMAdapter":
+    """Same grouping step on Groq's text model (free tier: 1000 output tokens/min)."""
+    from .groq_vision import reasoning_options
+
+    model = settings.GROQ_TEXT_MODEL
+    return NIMAdapter(
+        base_url="https://api.groq.com/openai",
+        model=model,
+        api_key=settings.GROQ_API_KEY,
+        max_tokens=1000,
+        extra={
+            "response_format": {"type": "json_object"},
+            **(reasoning_options(model, "none") or {}),
+        },
+        name="Groq grouper",
+    )

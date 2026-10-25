@@ -2,11 +2,15 @@ import base64
 from typing import Any, Dict, Tuple
 
 import httpx
+import logging
+
 from fastapi import HTTPException
 
 from ..config import settings
 from ..services.types import SpineResult
-from .nvidia_model import NIMAdapter
+from .nvidia_model import NIMAdapter, groq_grouper
+
+logger = logging.getLogger(__name__)
 
 API = "https://vision.googleapis.com/v1/images:annotate"
 
@@ -104,19 +108,25 @@ class GoogleVisionAdapter:
 
             # Step 2: Send to NVIDIA NIM for structured parsing (required for Google Vision + NVIDIA model)
             if candidates:
-                if not self.nim_adapter.api_key:
-                    raise RuntimeError(
-                        "NVIDIA NIM API key not configured for Google Vision + NVIDIA model"
-                    )
-
-                try:
-                    result = await self.nim_adapter.aggregate(candidates)
-                    return result, {"gcv_units": 1, "nvidia_units": 1}
-                except Exception as nim_error:
-                    print(f"DEBUG: NVIDIA NIM processing failed: {nim_error}")
-                    raise RuntimeError(
-                        f"NVIDIA NIM processing failed: {str(nim_error)}"
-                    )
+                # NVIDIA first; Groq's text model if NVIDIA is missing or fails
+                errors = []
+                groupers = []
+                if self.nim_adapter.api_key:
+                    groupers.append(("nvidia_units", self.nim_adapter))
+                if settings.GROQ_API_KEY:
+                    groupers.append(("groq_text_units", groq_grouper()))
+                for unit, grouper in groupers:
+                    try:
+                        result = await grouper.aggregate(candidates)
+                        return result, {"gcv_units": 1, unit: 1}
+                    except Exception as err:
+                        reason = getattr(err, "detail", None) or str(err)
+                        logger.warning(f"{grouper.name} grouping failed: {reason}")
+                        errors.append(f"{grouper.name}: {reason}")
+                raise RuntimeError(
+                    "No text model could group the OCR text: "
+                    + ("; ".join(errors) or "no NVIDIA or Groq key configured")
+                )
             else:
                 raise RuntimeError("No text candidates found for processing")
 

@@ -1,6 +1,5 @@
 import base64
 import json
-import traceback
 from typing import Any, Dict, Tuple
 
 from fastapi import HTTPException
@@ -9,38 +8,41 @@ from groq import Groq
 from ..config import settings
 from ..services.types import SpineResult
 
+# Short, title-focused output keeps a full shelf well under Groq's free-tier
+# output limit (1000 tokens/min) and gives the metadata lookup clean queries.
 PROMPT = (
-    "You are an expert bookshelf scanner. This image contains MULTIPLE books arranged on shelves. "
-    "Your task is to identify EVERY SINGLE BOOK you can see, no matter how small or partially visible.\n\n"
-    "CRITICAL INSTRUCTIONS:\n"
-    "- Scan for book spines arranged vertically AND horizontally; include stacked books.\n"
-    "- One entry per book. Do not merge adjacent spines.\n"
-    "- Use visual boundaries (gutters, edges, color/texture changes, logo breaks).\n"
-    "- Include partially visible spines. If uncertain between one or two books, prefer two.\n"
-    "- Do not miss books in corners or behind others.\n"
-    "- Ignore non-book objects (decor, boxes, binders, magazines without spine text, DVDs).\n"
-    "- If multiple spines/covers appear in a row, each is a SEPARATE book.\n"
-    "- Each book must have its own entry even if very close to others.\n\n"
-    "For EACH individual book, extract:\n"
-    "1) ALL visible text from that specific spine/cover. Preserve case and punctuation. Use '?' for unclear characters. "
-    "Join lines with single spaces. Any language/script allowed.\n"
-    "2) Any ISBN numbers if visible. Detect ISBN-10 or ISBN-13. Normalize to digits only (no hyphens). If none, set null.\n"
-    "3) Bounding box coordinates: axis-aligned, normalized to [0,1] relative to the full image, origin at top-left, four decimal places. "
-    '"bbox": {"x": left, "y": top, "w": width, "h": height}.\n\n'
-    "ORDERING:\n"
-    "- Sort output by bbox.y, then bbox.x (top-to-bottom, then left-to-right).\n\n"
-    "OUTPUT CONTRACT:\n"
-    '- Return ONLY strict JSON with this exact shape. No comments or extra keys. If nothing found, return {"spines": []}.\n\n'
-    "SCHEMA:\n"
-    '{ "spines": [ { "text": string, "candidate_isbn": string|null, "bbox": {"x": number, "y": number, "w": number, "h": number} } ] }\n\n'
-    "Return ONLY:\n"
-    '{ "spines": [ { "text": "Sample text", "candidate_isbn": null, "bbox": {"x":0.1234,"y":0.0456,"w":0.0789,"h":0.6543} } ] }\n\n'
-    "Remember: Maximize recall. No duplicates."
+    "You read photos of bookshelves and book stacks and list every distinct physical book.\n\n"
+    "Rules:\n"
+    "- One entry per physical book (spine or cover). Never list the same book twice.\n"
+    "- Read spines in any orientation and in any language or script.\n"
+    "- text: the book's title, then ' by ' and the author if the author is visible "
+    "(example: \"The Tipping Point by Malcolm Gladwell\"). Leave out subtitles, taglines, "
+    "edition notes, publisher names and sales claims such as 'bestseller'.\n"
+    "- Copy words as printed; do not guess words you cannot read. Skip a book if no title is readable.\n"
+    "- candidate_isbn: digits only if an ISBN is printed, otherwise null.\n"
+    "- Order top-to-bottom, then left-to-right. Ignore objects that are not books "
+    "and newspaper or magazine mastheads.\n\n"
+    "Return only JSON in exactly this shape:\n"
+    '{"spines":[{"text":"The Tipping Point by Malcolm Gladwell","candidate_isbn":null}]}\n'
+    'If there are no readable books, return {"spines":[]}.'
 )
 
-MODEL_ID = getattr(
-    settings, "GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"
-)
+# Free tier caps output at 1000 tokens per minute per model
+MAX_OUTPUT_TOKENS = 1000
+
+MODEL_ID = getattr(settings, "GROQ_VISION_MODEL", "qwen/qwen3.8-27b")
+
+
+def reasoning_options(model: str, effort: str) -> Dict[str, Any] | None:
+    """Reasoning models spend output tokens on hidden thinking; keep it small.
+
+    Qwen 3 accepts "none"; gpt-oss accepts low/medium/high. Other models reject the field.
+    """
+    if "qwen3" in model:
+        return {"reasoning_effort": effort}
+    if "gpt-oss" in model:
+        return {"reasoning_effort": "low" if effort == "none" else effort}
+    return None
 
 
 class GroqVisionAdapter:
@@ -65,13 +67,14 @@ class GroqVisionAdapter:
                 messages=[{"role": "user", "content": content}],
                 response_format={"type": "json_object"},  # ask for strict JSON
                 temperature=0,
+                max_tokens=MAX_OUTPUT_TOKENS,
+                extra_body=reasoning_options(MODEL_ID, "none"),
             )
         except Exception as e:
             # surface as HTTP 502-ish to trigger fallback above us
-            error_detail = (
-                f"groq_error:{e.__class__.__name__}:{str(e)}:{traceback.format_exc()}"
+            raise HTTPException(
+                status_code=502, detail=f"groq_error:{e.__class__.__name__}:{e}"
             )
-            raise HTTPException(status_code=502, detail=error_detail)
 
         usage = getattr(resp, "usage", None)
         # Parse JSON
@@ -81,7 +84,8 @@ class GroqVisionAdapter:
             result = SpineResult.parse_obj(data)
         except Exception as e:
             raise HTTPException(
-                status_code=502, detail=f"groq_parse_error:{e.__class__.__name__}"
+                status_code=502,
+                detail=f"groq_parse_error:{e.__class__.__name__}:{e}",
             )
 
         # usage may include token counts; we pass it up for logging

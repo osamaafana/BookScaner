@@ -119,8 +119,10 @@ class VisionService:
                 logger.info("✅ Groq vision processing successful")
 
             except Exception as e:
+                # HTTPException keeps its message in .detail, not str(e)
+                reason = getattr(e, "detail", None) or f"{e.__class__.__name__}: {e}"
                 logger.warning(
-                    f"❌ Groq vision failed: {e}, falling back to Google Vision"
+                    f"❌ Groq vision failed: {reason}; falling back to Google Vision"
                 )
                 # If Groq fails, fall back to Google Cloud Vision
                 # Google Vision can handle larger images, so use original

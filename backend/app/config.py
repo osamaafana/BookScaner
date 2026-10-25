@@ -41,8 +41,10 @@ class Settings(BaseSettings):
     # Providers / models
     GROQ_API_KEY: str = ""
     GROQ_ENABLED: bool = True
-    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
-    OLLAMA_RECS_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_VISION_MODEL: str = "qwen/qwen3.8-27b"
+    # Groq model that groups Google Vision text into books when NVIDIA fails
+    GROQ_TEXT_MODEL: str = "qwen/qwen3.8-27b"
+    OLLAMA_RECS_MODEL: str = "openai/gpt-oss-20b"
     GCV_CREDENTIALS_JSON_PATH: Optional[str] = None
     OPENLIBRARY_ENABLED: bool = True
     GOOGLEBOOKS_API_KEY: str = ""
@@ -50,7 +52,7 @@ class Settings(BaseSettings):
 
     # NVIDIA NIM
     NVIDIA_API_KEY: str = ""
-    NVIDIA_MODEL_NAME: str = "meta/llama-3.1-70b-instruct"
+    NVIDIA_MODEL_NAME: str = "meta/llama-3.2-90b-vision-instruct"
     NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com"
 
     # Metadata cache TTL (seconds)

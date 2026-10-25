@@ -153,38 +153,28 @@ class RecsService:
             ", ".join(preferences.get("languages", [])) or "No specific languages"
         )
 
-        prompt = f"""You are an expert book recommendation AI. Analyze each book below against the user's preferences and provide detailed scoring and recommendations.
+        prompt = f"""You help a reader standing at a bookshelf decide which of these books they would enjoy.
 
-USER PREFERENCES:
-- Favorite Genres: {genres_text}
-- Favorite Authors: {authors_text}
-- Preferred Languages: {languages_text}
+READER
+- Favorite genres: {genres_text}
+- Favorite authors: {authors_text}
+- Languages they read: {languages_text}
 
-BOOKS TO ANALYZE:
+BOOKS (numbered)
 {books_text}
+For EVERY book above, judge how well it fits this reader. Use what you know about the book (genre, themes, style,
+reputation). If you do not recognize a book, say so in the reasoning and score it on the title and genres given.
+Score in a language the reader does not read at 3 or lower.
 
-For each book, provide:
-1. A compatibility score from 0-10 (10 = perfect match)
-2. A personalized recommendation (1-2 sentences)
-3. Match quality: perfect/good/fair/poor
-4. Detailed reasoning for the score
+Scoring: 0-10, one decimal. 9-10 = clearly matches a favorite genre or author; 7-8 = good fit; 4-6 = mixed;
+0-3 = poor fit. match_quality must agree with the score: perfect (9+), good (7-8.9), fair (4-6.9), poor (<4).
 
-Format your response as JSON with this structure:
-{{
-  "book_analyses": [
-    {{
-      "book_index": 1,
-      "title": "Book Title",
-      "author": "Author Name",
-      "score": 8.5,
-      "recommendation": "This book perfectly matches your love for science fiction...",
-      "match_quality": "perfect",
-      "reasoning": "Detailed explanation of why this score was given..."
-    }}
-  ]
-}}
+Write to the reader as "you", plainly, no hype.
+- recommendation: one sentence, at most 25 words, saying why they would or would not enjoy it.
+- reasoning: at most 20 words naming the deciding factors.
 
-Be creative and insightful in your analysis. Consider genre alignment, author preferences, writing style, themes, and how well each book would fit the user's reading taste."""
+Return only JSON, one entry per book, using the same book_index numbers:
+{{"book_analyses":[{{"book_index":1,"title":"...","author":"...","score":8.5,"recommendation":"...","match_quality":"good","reasoning":"..."}}]}}"""
         return prompt
 
     def _parse_analysis_response(
