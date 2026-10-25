@@ -20,6 +20,8 @@ SYSTEM_PROMPT = (
     "- Drop taglines, subtitles, edition notes, publisher names and sales claims "
     "(\"bestseller\", \"over 15 million copies sold\").\n"
     "- Use only words that appear in the fragments; fix obvious OCR splits but do not invent titles.\n"
+    "- Keep every word of a title, including small words printed above a large one "
+    "(\"The 33 Strategies of War\", not \"War\").\n"
     "- No duplicates. Order top-to-bottom, then left-to-right.\n\n"
     "Output: only JSON, no prose, in exactly this shape:\n"
     '{"spines":[{"text":"Think and Grow Rich by Napoleon Hill","candidate_isbn":null}]}\n'

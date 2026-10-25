@@ -50,6 +50,54 @@ def fuzzy_similarity(s1: str, s2: str) -> float:
         return 0.0
 
 
+def _words(s: str) -> set:
+    return {w for w in normalize_text(s or "").split() if len(w) > 1}
+
+
+def author_matches(wanted: str, candidates: List[str]) -> bool:
+    """True when the reader's author plausibly names one of the candidate authors.
+
+    Compares name words so "P. L. Travers" matches "Pamela Lyndon Travers".
+    """
+    if not wanted:
+        return True
+    wanted_words = {w for w in _words(wanted) if len(w) > 2}
+    for name in candidates:
+        if not name:
+            continue
+        if fuzzy_similarity(wanted, name) >= 0.8:
+            return True
+        # a shared name word (usually the surname): "P. L. Travers" ~ "Pamela Lyndon Travers"
+        if wanted_words & {w for w in _words(name) if len(w) > 2}:
+            return True
+    return False
+
+
+def title_matches(wanted: str, candidate: str, author_confirmed: bool = False) -> bool:
+    """True when the found title is really the book the reader saw.
+
+    Accepts close spellings and short forms ("Sapiens" vs "Sapiens: A Brief History..."),
+    rejects loose hits ("War" vs "Why Europe is at War").
+    """
+    if not wanted or not candidate:
+        return False
+    if fuzzy_similarity(wanted, candidate) >= 0.75:
+        return True
+    w, c = normalize_text(wanted), normalize_text(candidate)
+    # found title = read title + subtitle ("Sapiens" -> "Sapiens: A Brief History...")
+    if c.startswith(w):
+        return True
+    # read title carried a subtitle the catalog leaves out ("Persepolis: The Story..." -> "Persepolis")
+    main = normalize_text(wanted.split(":")[0])
+    if main == c:
+        return True
+    # catalog title is the start of the read text: "Sapiens A Brief History..." -> "Sapiens".
+    # A lone word only counts when the author also matched ("Julian Barnes" !-> "Julian" by Gore Vidal)
+    if w.startswith(c + " "):
+        return len(c.split()) >= 2 or author_confirmed
+    return False
+
+
 class GoogleBooksAdapter:
     def __init__(self):
         self.key = settings.GOOGLEBOOKS_API_KEY or ""
@@ -66,10 +114,21 @@ class GoogleBooksAdapter:
         if author:
             parts.append(f'inauthor:"{author}"')
         q = " ".join(parts) if parts else title
-        data = await self._search(q)
-        return self._to_canonical(data, fallback=(title, author))
+        items = await self._search_items(q)
+        for item in items:
+            vi = item.get("volumeInfo") or {}
+            authors = vi.get("authors") or []
+            if author_matches(author, authors) and title_matches(
+                title, vi.get("title") or "", author_confirmed=bool(author)
+            ):
+                return self._to_canonical(item, fallback=(title, author))
+        return None
 
     async def _search(self, q: str) -> Optional[dict]:
+        items = await self._search_items(q)
+        return items[0] if items else None
+
+    async def _search_items(self, q: str) -> List[dict]:
         params = {"q": q, "maxResults": 5}
         if self.key:
             params["key"] = self.key
@@ -78,11 +137,11 @@ class GoogleBooksAdapter:
                 r = await client.get(GB_API, params=params)
                 r.raise_for_status()
                 d = r.json()
-            items = d.get("items") or []
-            return items[0] if items else None
+            return d.get("items") or []
         except (httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
-            print(f"DEBUG: Google Books search failed for query '{q}': {e}")
-            return None
+            # str(e) holds the request URL with the API key; log the class only
+            print(f"DEBUG: Google Books search failed for query '{q}': {e.__class__.__name__}")
+            return []
 
     def _to_canonical(
         self, item: Optional[dict], fallback: Optional[tuple] = None
@@ -131,6 +190,19 @@ class GoogleBooksAdapter:
 
 
 class OpenLibraryAdapter:
+    async def _search_docs(self, params: dict) -> List[dict]:
+        return await _ol_get(params)
+
+    @staticmethod
+    def _matching(docs: List[dict], title: str, author: str) -> List[dict]:
+        """Only results that really are the book the reader saw."""
+        return [
+            d
+            for d in docs
+            if author_matches(author, d.get("author_name") or [])
+            and title_matches(title, d.get("title") or "", author_confirmed=bool(author))
+        ]
+
     async def by_isbn(self, isbn: str) -> Optional[CanonicalBook]:
         if not settings.OPENLIBRARY_ENABLED:
             return None
@@ -178,29 +250,16 @@ class OpenLibraryAdapter:
         if not (title or author):
             return None
 
-        # Build URL manually to use + for spaces (OpenLibrary expects this format)
-        import urllib.parse
-
-        query_parts = []
-        if title:
-            query_parts.append(f"title={urllib.parse.quote_plus(title)}")
-        if author:
-            query_parts.append(f"author={urllib.parse.quote_plus(author)}")
-        query_parts.append("limit=5")
-        url = f"{OL_SEARCH_API}?{'&'.join(query_parts)}"
-
-        try:
-            async with httpx.AsyncClient(timeout=20) as client:
-                r = await client.get(url)
-                r.raise_for_status()
-                data = r.json()
-        except (httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
-            print(f"DEBUG: OpenLibrary search failed for '{title}' by '{author}': {e}")
+        docs = await self._search_docs({"title": title, "author": author})
+        matching = self._matching(docs, title, author)
+        if not matching:
+            # Long titles with subtitles often miss the title field; free-text search finds them
+            docs = await self._search_docs({"q": title, "author": author})
+            matching = self._matching(docs, title, author)
+        if not matching:
+            print(f"DEBUG: OpenLibrary - no matching result for '{title}' by '{author}'")
             return None
-
-        docs: List[dict] = data.get("docs") or []
-        if not docs:
-            return None
+        docs = matching
 
         # pick best doc by improved fuzzy scoring: title similarity + author similarity + edition_count
         def score(d: dict) -> tuple:
@@ -222,7 +281,8 @@ class OpenLibraryAdapter:
             # Weighted scoring: title is most important, then author, then editions
             return (title_similarity * 10, author_similarity * 5, edition_score)
 
-        best = sorted(docs, key=score, reverse=True)[0]
+        ranked = sorted(docs, key=score, reverse=True)
+        best = ranked[0]
 
         # prefer ISBN13 if present
         isbns = best.get("isbn") or []
@@ -237,9 +297,13 @@ class OpenLibraryAdapter:
 
         # Try to get cover URL - prefer ISBN-based, fallback to cover_i if available
         cover_url = _cover_or_none(isbn) if isbn else None
-        if not cover_url and best.get("cover_i"):
-            # Use OpenLibrary's cover_i (cover ID) for books without ISBN
-            cover_url = f"https://covers.openlibrary.org/b/id/{best['cover_i']}-L.jpg"
+        if not cover_url:
+            # Use a cover ID from this work, or from another matching result
+            cover_id = best.get("cover_i") or next(
+                (d.get("cover_i") for d in ranked if d.get("cover_i")), None
+            )
+            if cover_id:
+                cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
         # Debug logging
         print(f"DEBUG: Book '{title}' by '{author}' - ISBN: {isbn}, Cover: {cover_url}")
@@ -260,6 +324,19 @@ class OpenLibraryAdapter:
                 best.get("title") or title, author_name or author, isbn or ""
             ),
         )
+
+
+async def _ol_get(params: dict) -> List[dict]:
+    params = {k: v for k, v in params.items() if v}
+    params["limit"] = 5
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.get(OL_SEARCH_API, params=params)
+            r.raise_for_status()
+            return r.json().get("docs") or []
+    except (httpx.HTTPStatusError, httpx.RequestError, Exception) as e:
+        print(f"DEBUG: OpenLibrary search failed for {params}: {e.__class__.__name__}")
+        return []
 
 
 def _cover_or_none(isbn: Optional[str]) -> Optional[str]:

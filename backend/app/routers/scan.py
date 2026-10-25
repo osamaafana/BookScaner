@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from app.config import settings
@@ -116,12 +117,12 @@ async def scan(
             f"Vision service detected {len(vision_result.spines)} text regions using {provider_used}"
         )
 
-        # Step 2: Process each detected book
-        detected_books = []
+        # Step 2: Look up every detected book at the same time (bounded)
+        lookup_slots = asyncio.Semaphore(8)
 
-        for spine in vision_result.spines:
+        async def process_spine(spine):
             if not spine.text or not spine.text.strip():
-                continue
+                return None
 
             try:
                 #  title/author parsing
@@ -156,11 +157,10 @@ async def scan(
                     "isbn": spine.candidate_isbn,
                 }
 
-                canonical_book = await _meta_service.enrich_one(partial)
+                async with lookup_slots:
+                    canonical_book = await _meta_service.enrich_one(partial)
 
-                # Add to results
-                detected_books.append(
-                    {
+                book = {
                         "title": canonical_book.title if canonical_book else title,
                         "author": canonical_book.author if canonical_book else author,
                         "cover_url": (
@@ -188,16 +188,20 @@ async def scan(
                             else None
                         ),
                     }
-                )
 
                 if canonical_book:
                     logger.info(f"Successfully enriched: {canonical_book.title}")
                 else:
                     logger.info(f"No metadata found, using parsed data: {title}")
+                return book
 
             except Exception as e:
                 logger.error(f"Failed to process book text '{spine.text}': {e}")
-                continue
+                return None
+
+        # gather keeps the reader's order (top-to-bottom, left-to-right)
+        results = await asyncio.gather(*(process_spine(sp) for sp in vision_result.spines))
+        detected_books = [b for b in results if b]
 
         logger.info(
             f"Successfully processed {len(detected_books)} books from {len(vision_result.spines)} text regions"

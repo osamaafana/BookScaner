@@ -32,13 +32,18 @@ class BooksMetaService:
         else:
             result = await self.ol.search(title, author)
 
-        # Fallback: Google Books
+        # Fallback: Google Books (also checked for a real title/author match)
         if not result:
             result = (
                 (await self.gb.by_isbn(isbn))
                 if isbn
                 else (await self.gb.search(title, author))
             )
+        # Matched on Open Library but no cover there: borrow Google Books' cover
+        elif not result.cover_url:
+            gb = await self.gb.search(result.title, result.author or author)
+            if gb and gb.cover_url:
+                result.cover_url = gb.cover_url
 
         if result:
             await cache_set(key, result.dict(), self.ttl)

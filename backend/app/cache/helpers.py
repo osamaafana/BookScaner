@@ -32,8 +32,10 @@ async def cache_get(key: str) -> Any:
 
 # Key helpers
 def scan_key(image_hash: str, groq_enabled: bool = True) -> str:
-    return f"scan:{image_hash}:groq_{groq_enabled}"
+    # v2: new reader prompt; ignore spines cached by the old one
+    return f"scan:v2:{image_hash}:groq_{groq_enabled}"
 
 
 def meta_key(fingerprint: str) -> str:
-    return f"meta:{fingerprint}"
+    # v2: lookups now reject wrong matches; ignore results cached by the old logic
+    return f"meta:v2:{fingerprint}"
